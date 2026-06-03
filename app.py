@@ -8,8 +8,8 @@ import requests
 import os
 
 # ══════════════════════════════════════════════
-STRAPI_URL   = os.getenv("https://gezi-rehberi-backend-11py.onrender.com/admin", "http://localhost:1337")
-STRAPI_TOKEN = os.getenv("92d4aefd47b59c685f427883cc21532e0327d928dd901749e49c66151e321184c83563ffa5fc4af18b39888a875576ec70b0be9a49493cc4dbfce898378c50fe4f8c88d4d2a3cfba7307384f3e0ad0b4ff4e6a61311a97bced3f758885c78b901f2da9bddf440a3586e964268e8e67193c861c3e6aa0fe053ca6fbc481c2648c", "")
+STRAPI_URL   = os.getenv("STRAPI_API_URL", "http://localhost:1337")
+STRAPI_TOKEN = os.getenv("STRAPI_API_TOKEN", "")
 # ══════════════════════════════════════════════
 
 st.set_page_config(
