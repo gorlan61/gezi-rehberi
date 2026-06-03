@@ -5,10 +5,11 @@ app.py - Streamlit Frontend (Son Kullanıcı Odaklı Tasarım)
 
 import streamlit as st
 import requests
+import os
 
 # ══════════════════════════════════════════════
-STRAPI_URL   = "http://localhost:1337"
-STRAPI_TOKEN = "be35cbadfdf50593069c51bd4faa436f59ca0d33ff1a53d8899b3d48b178e3367f42bb86827bd6f06629fd2e8121c22670aa32badf479ac0632fc1d2655ddf3fcdd486d08b25bfd0ea9f3cbf400e434db38300141eaf023ae50718a54a2f75646c376c4d9fd8f5ab0d0644a20f6de5d86c4c50778c9de510699cd964d163bc74"
+STRAPI_URL   = os.getenv("https://gezi-rehberi-backend-11py.onrender.com/admin", "http://localhost:1337")
+STRAPI_TOKEN = os.getenv("92d4aefd47b59c685f427883cc21532e0327d928dd901749e49c66151e321184c83563ffa5fc4af18b39888a875576ec70b0be9a49493cc4dbfce898378c50fe4f8c88d4d2a3cfba7307384f3e0ad0b4ff4e6a61311a97bced3f758885c78b901f2da9bddf440a3586e964268e8e67193c861c3e6aa0fe053ca6fbc481c2648c", "")
 # ══════════════════════════════════════════════
 
 st.set_page_config(
