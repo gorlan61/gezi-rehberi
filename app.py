@@ -2,12 +2,12 @@
 BIP210 - Final Projesi: YZ Destekli Gezi Rehberi
 app.py - Streamlit Frontend
 
-Önemli:
-- Localde varsayılan olarak http://localhost:1337 kullanır.
-- Streamlit Cloud'da STRAPI_URL ve STRAPI_TOKEN değerlerini Secrets'tan okur.
-- Strapi/Render görseli çalışmıyorsa kartları boş bırakmaz, otomatik yedek görsel gösterir.
+Bu sürümde görseller tarayıcıya doğrudan uzak URL olarak verilmez.
+Önce Python tarafında indirilir, base64 data-uri olarak karta gömülür.
+Böylece Streamlit Cloud'da kırık /uploads URL'leri kartları boş bırakmaz.
 """
 
+import base64
 import hashlib
 import html
 import os
@@ -21,11 +21,6 @@ import streamlit as st
 # AYARLAR
 # ══════════════════════════════════════════════
 def ayar_al(adlar, varsayilan: str = "") -> str:
-    """
-    Birden fazla isimle ayar okuyabilir.
-    Örn: STRAPI_URL yoksa STRAPI_API_URL değerini de kabul eder.
-    Böylece local, Streamlit Cloud ve eski secret isimleri birlikte çalışır.
-    """
     if isinstance(adlar, str):
         adlar = [adlar]
 
@@ -45,18 +40,17 @@ def ayar_al(adlar, varsayilan: str = "") -> str:
     return varsayilan
 
 
-# Önerilen isimler: STRAPI_URL ve STRAPI_TOKEN
-# Senin Streamlit Cloud'da yazdığın eski isimler de destekleniyor:
-# STRAPI_API_URL ve STRAPI_API_TOKEN
+# Streamlit Cloud Secrets için önerilen isimler:
+# STRAPI_URL = "https://gezi-rehberi-backend-11py.onrender.com"
+# STRAPI_TOKEN = "Render Strapi Full Access Token"
+#
+# Eski isimlerin varsa onlar da çalışır:
+# STRAPI_API_URL / STRAPI_API_TOKEN
 STRAPI_URL = ayar_al(["STRAPI_URL", "STRAPI_API_URL"], "http://localhost:1337").rstrip("/")
 STRAPI_TOKEN = ayar_al(["STRAPI_TOKEN", "STRAPI_API_TOKEN"], "").strip()
 
 
 def auth_headers() -> dict:
-    """
-    Public izinler açıksa token şart değildir.
-    Token varsa Authorization header gönderilir.
-    """
     if STRAPI_TOKEN:
         return {"Authorization": f"Bearer {STRAPI_TOKEN}"}
     return {}
@@ -68,6 +62,34 @@ def stable_seed(text: str) -> int:
 
 def guvenli_metin(deger) -> str:
     return html.escape(str(deger or ""), quote=True)
+
+
+def data_uri_olustur(content: bytes, content_type: str = "image/jpeg") -> str:
+    b64 = base64.b64encode(content).decode("utf-8")
+    return f"data:{content_type};base64,{b64}"
+
+
+def placeholder_svg(adi: str, sehir: str) -> str:
+    adi = guvenli_metin(adi)
+    sehir = guvenli_metin(sehir)
+    svg = f"""
+    <svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
+      <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#0f3d22"/>
+          <stop offset="50%" stop-color="#0f172a"/>
+          <stop offset="100%" stop-color="#111827"/>
+        </linearGradient>
+      </defs>
+      <rect width="800" height="500" fill="url(#g)"/>
+      <circle cx="650" cy="100" r="130" fill="#22c55e" opacity="0.12"/>
+      <circle cx="140" cy="390" r="160" fill="#3b82f6" opacity="0.08"/>
+      <text x="50" y="245" fill="#ffffff" font-family="Arial, sans-serif" font-size="46" font-weight="700">{adi}</text>
+      <text x="52" y="300" fill="#4ade80" font-family="Arial, sans-serif" font-size="24" font-weight="600">{sehir}</text>
+      <text x="52" y="345" fill="#94a3b8" font-family="Arial, sans-serif" font-size="18">YZ Destekli Gezi Rehberi</text>
+    </svg>
+    """.encode("utf-8")
+    return data_uri_olustur(svg, "image/svg+xml")
 
 
 # ══════════════════════════════════════════════
@@ -83,316 +105,447 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; }
 
 html, body, .stApp {
     font-family: 'Inter', sans-serif !important;
     background: #080c14 !important;
     color: #c9d1e0 !important;
-    -webkit-font-smoothing: antialiased;
 }
 
-.block-container { padding: 0 !important; max-width: 100% !important; }
-header[data-testid="stHeader"] { display: none !important; }
-.stDeployButton, footer, [data-testid="stToolbar"] { display: none !important; }
-section[data-testid="stSidebar"] { display: none !important; }
-div[data-testid="stDecoration"] { display: none !important; }
+.block-container {
+    padding: 0 !important;
+    max-width: 100% !important;
+}
 
-/* ── NAVBAR ── */
+header[data-testid="stHeader"],
+.stDeployButton,
+footer,
+[data-testid="stToolbar"],
+section[data-testid="stSidebar"],
+div[data-testid="stDecoration"] {
+    display: none !important;
+}
+
 .navbar {
-    position: sticky; top: 0; z-index: 999;
-    background: rgba(8,12,20,0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    position: sticky;
+    top: 0;
+    z-index: 999;
+    background: rgba(8,12,20,0.94);
+    backdrop-filter: blur(18px);
     border-bottom: 1px solid rgba(255,255,255,0.06);
     padding: 0 48px;
-    height: 62px;
-    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
-.nav-brand { display: flex; align-items: center; gap: 10px; }
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .nav-brand-icon {
-    width: 34px; height: 34px;
+    width: 36px;
+    height: 36px;
     background: linear-gradient(135deg, #22c55e, #16a34a);
     border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
-.nav-brand-text { font-size: 1rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.01em; }
-.nav-brand-text span { color: #22c55e; }
-.nav-links { display: flex; align-items: center; gap: 8px; }
+
+.nav-brand-text {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.nav-brand-text span {
+    color: #22c55e;
+}
+
 .nav-tag {
-    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     background: rgba(34,197,94,0.12);
     color: #4ade80;
-    border: 1px solid rgba(34,197,94,0.2);
-    padding: 5px 12px; border-radius: 20px;
+    border: 1px solid rgba(34,197,94,0.25);
+    padding: 6px 14px;
+    border-radius: 999px;
 }
 
-/* ── HERO ── */
 .hero-section {
-    position: relative; overflow: hidden;
-    padding: 100px 48px 80px;
-    min-height: 480px;
-    display: flex; flex-direction: column;
-    align-items: flex-start; justify-content: flex-end;
-    background: #0d1420;
-}
-.hero-bg {
-    position: absolute; inset: 0;
+    position: relative;
+    overflow: hidden;
+    padding: 90px 48px 70px;
+    min-height: 430px;
     background:
-        radial-gradient(ellipse 80% 60% at 70% 30%, rgba(34,197,94,0.08) 0%, transparent 60%),
-        radial-gradient(ellipse 50% 40% at 20% 80%, rgba(59,130,246,0.06) 0%, transparent 50%);
+        radial-gradient(ellipse 70% 70% at 75% 20%, rgba(34,197,94,0.09), transparent 60%),
+        radial-gradient(ellipse 40% 40% at 20% 90%, rgba(59,130,246,0.08), transparent 55%),
+        #0d1420;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-.hero-grid {
-    position: absolute; inset: 0; opacity: 0.03;
-    background-image: linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
-                      linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
-    background-size: 40px 40px;
-}
+
 .hero-eyebrow {
-    position: relative;
-    display: inline-flex; align-items: center; gap: 8px;
-    background: rgba(34,197,94,0.1);
-    border: 1px solid rgba(34,197,94,0.2);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(34,197,94,0.10);
+    border: 1px solid rgba(34,197,94,0.20);
     color: #4ade80;
-    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
     text-transform: uppercase;
-    padding: 7px 14px; border-radius: 20px;
-    margin-bottom: 28px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    margin-bottom: 26px;
 }
-.hero-eyebrow::before {
-    content: '';
-    width: 6px; height: 6px;
-    background: #22c55e;
-    border-radius: 50%;
-    animation: pulse-dot 2s infinite;
-}
-@keyframes pulse-dot {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.7); }
-}
+
 .hero-title {
-    position: relative;
     font-size: clamp(2.8rem, 6vw, 5rem);
     font-weight: 900;
     color: #ffffff;
-    line-height: 1.0;
-    letter-spacing: -0.03em;
+    line-height: 1;
+    letter-spacing: -0.04em;
     margin-bottom: 20px;
 }
-.hero-title .accent { color: #22c55e; }
-.hero-sub {
-    position: relative;
-    font-size: 1.1rem;
-    color: #64748b;
-    max-width: 500px;
-    line-height: 1.65;
-    margin-bottom: 48px;
-    font-weight: 400;
+
+.hero-title .accent {
+    color: #22c55e;
 }
+
+.hero-sub {
+    font-size: 1.08rem;
+    color: #64748b;
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 42px;
+}
+
 .hero-stats {
-    position: relative;
-    display: flex; gap: 0;
-    border: 1px solid rgba(255,255,255,0.07);
+    display: inline-flex;
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 16px;
     overflow: hidden;
     background: rgba(255,255,255,0.03);
 }
+
 .hero-stat {
     padding: 18px 32px;
     border-right: 1px solid rgba(255,255,255,0.07);
     text-align: center;
 }
-.hero-stat:last-child { border-right: none; }
-.hero-stat .sv { font-size: 1.8rem; font-weight: 800; color: #22c55e; line-height: 1; }
-.hero-stat .sl { font-size: 0.7rem; font-weight: 500; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
 
-/* ── TOOLBAR SECTION ── */
-.toolbar-section {
-    padding: 28px 48px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
-    padding-bottom: 28px;
+.hero-stat:last-child {
+    border-right: none;
 }
+
+.hero-stat .sv {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #22c55e;
+    line-height: 1;
+}
+
+.hero-stat .sl {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 5px;
+}
+
+.toolbar-section {
+    padding: 28px 48px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
 .toolbar-label {
-    font-size: 0.7rem; font-weight: 600; color: #475569;
-    text-transform: uppercase; letter-spacing: 0.1em;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
     margin-bottom: 12px;
 }
 
-/* Streamlit selectbox override */
-div[data-testid="stSelectbox"] > label { display: none !important; }
+div[data-testid="stSelectbox"] > label {
+    display: none !important;
+}
+
 div[data-baseweb="select"] > div {
     background: #111827 !important;
     border: 1px solid rgba(255,255,255,0.1) !important;
     border-radius: 12px !important;
     min-height: 48px !important;
 }
-div[data-baseweb="select"] > div:hover {
-    border-color: rgba(34,197,94,0.4) !important;
-}
-[data-baseweb="select"] span { color: #e2e8f0 !important; font-size: 0.95rem !important; }
 
-/* ── ŞEHİR HERO ── */
+[data-baseweb="select"] span {
+    color: #e2e8f0 !important;
+}
+
+.city-hero-wrap {
+    padding: 32px 48px 0;
+}
+
 .city-hero {
-    margin: 0 48px;
     padding: 32px 36px;
     background: linear-gradient(135deg, #0f1f0f 0%, #0d1520 100%);
     border: 1px solid rgba(34,197,94,0.15);
     border-radius: 20px;
-    display: flex; align-items: center; gap: 28px;
-    position: relative; overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    position: relative;
+    overflow: hidden;
 }
-.city-hero::before {
-    content: '';
-    position: absolute; right: -40px; top: -40px;
-    width: 200px; height: 200px;
-    background: radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%);
-    border-radius: 50%;
-}
+
 .city-hero-icon {
-    width: 64px; height: 64px; flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
     background: linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.05));
     border: 1px solid rgba(34,197,94,0.25);
     border-radius: 18px;
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 28px;
 }
-.city-hero-name { font-size: 1.8rem; font-weight: 800; color: #f8fafc; letter-spacing: -0.02em; }
-.city-hero-country {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 0.82rem; font-weight: 500; color: #22c55e; margin-top: 4px;
+
+.city-hero-name {
+    font-size: 1.8rem;
+    font-weight: 900;
+    color: #f8fafc;
+    letter-spacing: -0.02em;
 }
-.city-hero-desc { font-size: 0.9rem; color: #64748b; line-height: 1.6; margin-top: 8px; max-width: 600px; }
+
+.city-hero-country {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: #22c55e;
+    margin-top: 4px;
+}
+
+.city-hero-desc {
+    font-size: 0.92rem;
+    color: #64748b;
+    line-height: 1.65;
+    margin-top: 8px;
+    max-width: 700px;
+}
+
 .city-hero-badge {
-    margin-left: auto; flex-shrink: 0;
-    padding: 12px 20px;
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 14px 22px;
     background: rgba(34,197,94,0.1);
     border: 1px solid rgba(34,197,94,0.2);
     border-radius: 14px;
     text-align: center;
 }
-.city-hero-badge .bv { font-size: 1.8rem; font-weight: 800; color: #22c55e; line-height: 1; }
-.city-hero-badge .bl { font-size: 0.68rem; font-weight: 500; color: #4ade80; text-transform: uppercase; letter-spacing: 0.08em; }
 
-/* ── BÖLÜM BAŞLIĞI ── */
+.city-hero-badge .bv {
+    font-size: 1.85rem;
+    font-weight: 900;
+    color: #22c55e;
+    line-height: 1;
+}
+
+.city-hero-badge .bl {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #4ade80;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
 .section-head {
     padding: 40px 48px 24px;
-    display: flex; align-items: center; gap: 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
     border-bottom: 1px solid rgba(255,255,255,0.04);
-    margin-bottom: 0;
 }
-.section-head-title { font-size: 1.15rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.01em; }
+
+.section-head-title {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #f1f5f9;
+}
+
 .section-pill {
-    padding: 4px 12px; border-radius: 20px;
-    font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
 }
+
 .pill-count {
     background: rgba(255,255,255,0.06);
     color: #64748b;
     border: 1px solid rgba(255,255,255,0.08);
 }
+
 .pill-lang {
     background: rgba(59,130,246,0.1);
     color: #60a5fa;
     border: 1px solid rgba(59,130,246,0.2);
 }
+
 .pill-ai {
     background: rgba(168,85,247,0.1);
     color: #c084fc;
     border: 1px solid rgba(168,85,247,0.2);
 }
 
-/* ── MEKAN GRID ── */
-.grid-outer { padding: 32px 48px 80px; }
+.grid-outer {
+    padding: 32px 48px 80px;
+}
 
-/* ── MEKAN KARTI ── */
 .mcard {
     background: #0e1420;
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 20px;
     overflow: hidden;
     margin-bottom: 28px;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, transform 0.2s;
 }
-.mcard:hover { border-color: rgba(34,197,94,0.25); }
+
+.mcard:hover {
+    border-color: rgba(34,197,94,0.25);
+    transform: translateY(-2px);
+}
 
 .mcard-img {
     position: relative;
-    height: 240px;
+    height: 250px;
     overflow: hidden;
     background: #111827;
 }
+
 .mcard-img img {
-    width: 100%; height: 100%;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     display: block;
-    transition: transform 0.4s ease;
-}
-.mcard:hover .mcard-img img { transform: scale(1.03); }
-.mcard-img-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(to top, rgba(14,20,32,0.85) 0%, transparent 50%);
-    pointer-events: none;
-}
-.mcard-img-badges {
-    position: absolute; top: 14px;
-    width: 100%; padding: 0 14px;
-    display: flex; justify-content: space-between; align-items: flex-start;
-    pointer-events: none;
-}
-.img-badge-left {
-    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
-    text-transform: uppercase;
-    background: rgba(34,197,94,0.9);
-    color: #052e12;
-    padding: 5px 10px; border-radius: 8px;
-}
-.img-badge-right {
-    display: flex; align-items: center; gap: 5px;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(8px);
-    color: #fbbf24;
-    font-size: 0.82rem; font-weight: 700;
-    padding: 5px 10px; border-radius: 8px;
-    border: 1px solid rgba(251,191,36,0.15);
-}
-.mcard-img-title {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    padding: 14px 20px 16px;
-    pointer-events: none;
-}
-.mcard-img-title h3 {
-    font-size: 1.15rem; font-weight: 700; color: #ffffff;
-    letter-spacing: -0.01em; text-shadow: 0 1px 8px rgba(0,0,0,0.5);
 }
 
-.mcard-body { padding: 20px 22px 0; }
-.mcard-desc { font-size: 0.875rem; color: #64748b; line-height: 1.65; }
+.mcard-img-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(14,20,32,0.92) 0%, rgba(14,20,32,0.25) 55%, rgba(14,20,32,0.05) 100%);
+}
+
+.mcard-img-badges {
+    position: absolute;
+    top: 14px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.img-badge-left {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: rgba(34,197,94,0.92);
+    color: #052e12;
+    padding: 6px 11px;
+    border-radius: 9px;
+}
+
+.img-badge-right {
+    background: rgba(0,0,0,0.72);
+    color: #fbbf24;
+    font-size: 0.84rem;
+    font-weight: 800;
+    padding: 6px 11px;
+    border-radius: 9px;
+    border: 1px solid rgba(251,191,36,0.15);
+}
+
+.mcard-img-title {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 18px 22px;
+}
+
+.mcard-img-title h3 {
+    font-size: 1.28rem;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.55);
+}
+
+.mcard-body {
+    padding: 20px 22px 0;
+}
+
+.mcard-desc {
+    font-size: 0.9rem;
+    color: #7387a8;
+    line-height: 1.72;
+}
 
 .mcard-footer {
     padding: 16px 22px 18px;
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     border-top: 1px solid rgba(255,255,255,0.05);
-    margin-top: 16px;
+    margin-top: 18px;
+    gap: 12px;
 }
-.stars { display: flex; gap: 3px; }
-.star-f { color: #f59e0b; font-size: 13px; }
-.star-e { color: #1e293b; font-size: 13px; }
-.puan-label { font-size: 0.78rem; font-weight: 600; color: #475569; }
+
+.stars {
+    display: flex;
+    gap: 3px;
+}
+
+.star-f {
+    color: #f59e0b;
+    font-size: 13px;
+}
+
+.star-e {
+    color: #1e293b;
+    font-size: 13px;
+}
+
+.puan-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #475569;
+}
+
 .ai-tag {
-    font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     background: rgba(168,85,247,0.1);
     color: #c084fc;
     border: 1px solid rgba(168,85,247,0.15);
-    padding: 4px 10px; border-radius: 8px;
-    display: flex; align-items: center; gap: 4px;
+    padding: 5px 10px;
+    border-radius: 8px;
 }
 
-/* ── DURUM MESAJLARI ── */
 .msg-box {
     margin: 48px;
     padding: 28px 32px;
@@ -401,34 +554,86 @@ div[data-baseweb="select"] > div:hover {
     font-size: 0.9rem;
     line-height: 1.6;
 }
-.msg-error { background: rgba(239,68,68,0.06); border-color: rgba(239,68,68,0.15); color: #fca5a5; }
-.msg-warn  { background: rgba(245,158,11,0.06); border-color: rgba(245,158,11,0.15); color: #fcd34d; }
 
-/* ── FOOTER ── */
+.msg-error {
+    background: rgba(239,68,68,0.06);
+    border-color: rgba(239,68,68,0.15);
+    color: #fca5a5;
+}
+
+.msg-warn {
+    background: rgba(245,158,11,0.06);
+    border-color: rgba(245,158,11,0.15);
+    color: #fcd34d;
+}
+
 .site-footer {
     border-top: 1px solid rgba(255,255,255,0.05);
     padding: 36px 48px;
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
 }
-.footer-left { font-size: 0.82rem; color: #1e293b; }
-.footer-left strong { color: #334155; }
-.footer-tags { display: flex; gap: 8px; flex-wrap: wrap; }
-.footer-tag {
-    font-size: 0.68rem; font-weight: 500;
-    background: rgba(255,255,255,0.04);
+
+.footer-left {
+    font-size: 0.82rem;
     color: #334155;
+}
+
+.footer-left strong {
+    color: #475569;
+}
+
+.footer-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.footer-tag {
+    font-size: 0.68rem;
+    font-weight: 600;
+    background: rgba(255,255,255,0.04);
+    color: #475569;
     border: 1px solid rgba(255,255,255,0.06);
-    padding: 4px 10px; border-radius: 8px;
+    padding: 4px 10px;
+    border-radius: 8px;
 }
 
 @media (max-width: 900px) {
-    .navbar, .toolbar-section, .section-head, .grid-outer, .site-footer { padding-left: 20px; padding-right: 20px; }
-    .hero-section { padding: 70px 20px 50px; min-height: 380px; }
-    .city-hero { margin: 0 20px; flex-direction: column; align-items: flex-start; }
-    .city-hero-badge { margin-left: 0; }
-    .hero-stats { flex-wrap: wrap; }
-    .hero-stat { min-width: 50%; }
+    .navbar, .toolbar-section, .section-head, .grid-outer, .site-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .hero-section {
+        padding: 70px 20px 50px;
+        min-height: 380px;
+    }
+
+    .city-hero-wrap {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .city-hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .city-hero-badge {
+        margin-left: 0;
+    }
+
+    .hero-stats {
+        flex-wrap: wrap;
+    }
+
+    .hero-stat {
+        min-width: 50%;
+    }
 }
 </style>
 """,
@@ -488,24 +693,11 @@ def alan(kayit: dict, alan_adi: str, varsayilan=""):
     return attrs.get(alan_adi, varsayilan)
 
 
-def strapi_url_mu(url: str) -> bool:
-    if not url:
-        return False
-
-    try:
-        host = urlparse(url).netloc.lower()
-        strapi_host = urlparse(STRAPI_URL).netloc.lower()
-        return host == strapi_host or host in {"localhost:1337", "127.0.0.1:1337"}
-    except Exception:
-        return False
-
-
 def tam_gorsel_url(url: str):
     if not url:
         return None
 
     url = str(url).strip()
-
     if not url:
         return None
 
@@ -517,8 +709,7 @@ def tam_gorsel_url(url: str):
 
     parsed = urlparse(url)
 
-    # DB içinde localhost olarak kaydedilmiş medya varsa ve uygulama bulutta çalışıyorsa,
-    # aynı path'i Render STRAPI_URL üzerine taşı.
+    # DB içinde localhost kayıtlıysa ve bulutta çalışıyorsak aynı path'i Render URL'ine taşır.
     if parsed.netloc.lower() in {"localhost:1337", "127.0.0.1:1337"} and not STRAPI_URL.startswith("http://localhost"):
         return f"{STRAPI_URL}{parsed.path}"
 
@@ -526,10 +717,6 @@ def tam_gorsel_url(url: str):
 
 
 def gorsel_url_al(mekan: dict):
-    """
-    Strapi v5 ve v4 benzeri populate yapılarını destekler.
-    kapak_resmi.url, kapak_resmi.formats.*, kapak_resmi.data.attributes.url yapılarını dener.
-    """
     try:
         kapak = mekan.get("kapak_resmi")
 
@@ -563,7 +750,6 @@ def gorsel_url_al(mekan: dict):
 
         if isinstance(medya, dict):
             data2 = medya.get("data")
-
             if isinstance(data2, dict):
                 if data2.get("url"):
                     return tam_gorsel_url(data2.get("url"))
@@ -584,51 +770,59 @@ def gorsel_url_al(mekan: dict):
     return None
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def url_calisiyor_mu(url: str) -> bool:
+def yedek_gorsel_adaylari(adi: str, sehir: str):
+    seed = stable_seed(f"{sehir}-{adi}")
+    prompt = quote(f"{sehir} {adi} Turkey travel landmark realistic photo")
+
+    return [
+        f"https://image.pollinations.ai/prompt/{prompt}?width=800&height=500&nologo=true&seed={seed}",
+        f"https://picsum.photos/seed/{seed}/800/500",
+    ]
+
+
+@st.cache_data(ttl=60 * 60 * 6, show_spinner=False)
+def resmi_indir_data_uri(url: str):
     """
-    Sadece Strapi/Render medya URL'lerini test eder.
-    Bozuk Render uploads kayıtlarını yakalayıp kartları boş bırakmamak için kullanılır.
-    Harici yedek görselleri test etmiyoruz, yoksa sayfa gereksiz yavaşlar.
+    Görseli Python tarafında indirip base64 data-uri üretir.
+    Böylece tarayıcıda kırık uzak URL görünmez.
     """
     if not url:
-        return False
+        return None
 
     try:
-        r = requests.get(url, timeout=8, stream=True)
-        content_type = r.headers.get("content-type", "").lower()
-        return r.status_code == 200 and "image" in content_type
+        r = requests.get(
+            url,
+            timeout=25,
+            headers={"User-Agent": "Mozilla/5.0"},
+            allow_redirects=True,
+        )
+
+        content_type = r.headers.get("content-type", "image/jpeg").split(";")[0].lower()
+
+        if r.status_code == 200 and r.content and content_type.startswith("image/"):
+            return data_uri_olustur(r.content, content_type)
+
     except Exception:
-        return False
+        return None
+
+    return None
 
 
-def yedek_gorsel_url(adi: str, sehir: str) -> str:
-    """
-    Strapi görseli yoksa ya da Render'da dosya silinmişse boş kart yerine
-    mekana göre AI görseli gösterir.
-    """
-    prompt = quote(f"{sehir} {adi} Turkey travel landmark realistic photo")
-    seed = stable_seed(f"{sehir}-{adi}")
-    return (
-        f"https://image.pollinations.ai/prompt/{prompt}"
-        f"?width=800&height=500&nologo=true&seed={seed}"
-    )
+def kart_gorseli_data_uri(mekan: dict, adi: str, sehir: str) -> str:
+    adaylar = []
 
+    strapi_gorsel = gorsel_url_al(mekan)
+    if strapi_gorsel:
+        adaylar.append(strapi_gorsel)
 
-def guvenli_gorsel_url(mekan: dict, adi: str, sehir: str) -> str:
-    gorsel = gorsel_url_al(mekan)
+    adaylar.extend(yedek_gorsel_adaylari(adi, sehir))
 
-    # Strapi/Render görseli varsa ama dosya artık yoksa fallback'e geç.
-    if gorsel and strapi_url_mu(gorsel):
-        if url_calisiyor_mu(gorsel):
-            return gorsel
-        return yedek_gorsel_url(adi, sehir)
+    for url in adaylar:
+        data_uri = resmi_indir_data_uri(url)
+        if data_uri:
+            return data_uri
 
-    # Cloudinary veya başka tam URL geldiyse doğrudan kullan.
-    if gorsel:
-        return gorsel
-
-    return yedek_gorsel_url(adi, sehir)
+    return placeholder_svg(adi, sehir)
 
 
 def yildiz(puan):
@@ -694,8 +888,6 @@ sehir_sayisi = len(sehirler)
 st.markdown(
     f"""
 <div class="hero-section">
-  <div class="hero-bg"></div>
-  <div class="hero-grid"></div>
   <div class="hero-eyebrow">YZ + Google News + Strapi</div>
   <h1 class="hero-title">Türkiye'yi<br><span class="accent">Keşfet.</span></h1>
   <p class="hero-sub">Yapay zeka ve güncel haberlerle zenginleştirilmiş, çok dilli dijital gezi rehberi. Şehirleri, tarihi mekânları ve kültürel hazineleri keşfet.</p>
@@ -757,7 +949,7 @@ secilen_ad_html = guvenli_metin(secilen_ad)
 # ══════════════════════════════════════════════
 st.markdown(
     f"""
-<div style="padding: 32px 48px 0;">
+<div class="city-hero-wrap">
 <div class="city-hero">
   <div class="city-hero-icon">📍</div>
   <div style="flex:1; min-width:0;">
@@ -816,13 +1008,12 @@ for i, mekan in enumerate(mekanlar):
     puan = alan(mekan, "puan") or 0
     sehir_nm = secilen_ad
 
-    gorsel = guvenli_gorsel_url(mekan, adi, sehir_nm)
+    gorsel_data_uri = kart_gorseli_data_uri(mekan, adi, sehir_nm)
 
     adi_html = guvenli_metin(adi)
     aciklama_html = guvenli_metin(aciklama)
     sehir_html = guvenli_metin(sehir_nm).upper()
     puan_html = guvenli_metin(puan)
-    gorsel_html = guvenli_metin(gorsel)
     yldz = yildiz(puan)
 
     with cols[i % 2]:
@@ -830,7 +1021,7 @@ for i, mekan in enumerate(mekanlar):
             f"""
         <div class="mcard">
           <div class="mcard-img">
-            <img src="{gorsel_html}" alt="{adi_html}"/>
+            <img src="{gorsel_data_uri}" alt="{adi_html}"/>
             <div class="mcard-img-overlay"></div>
             <div class="mcard-img-badges">
               <span class="img-badge-left">{sehir_html}</span>
