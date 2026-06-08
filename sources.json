@@ -1,0 +1,82 @@
+[
+  {
+    "city": "Trabzon",
+    "country": "Türkiye",
+    "city_summary_tr": "Karadeniz kıyısında, tarihi manastırları, yaylaları ve panoramik seyir noktalarıyla öne çıkan güçlü bir kültür ve doğa şehri.",
+    "place": "Ayasofya Müzesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/trabzon/gezilecekyer/ayasofya--muzesi",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Trabzon Hagia Sophia Museum Byzantine architecture sea view Turkey realistic travel photo"
+  },
+  {
+    "city": "Trabzon",
+    "country": "Türkiye",
+    "city_summary_tr": "Karadeniz kıyısında, tarihi manastırları, yaylaları ve panoramik seyir noktalarıyla öne çıkan güçlü bir kültür ve doğa şehri.",
+    "place": "Sümela Manastırı",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/trabzon/gezilecekyer/meryem-ana-sumela-manastiri",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Sumela Monastery cliffside forest Trabzon Turkey realistic travel photo"
+  },
+  {
+    "city": "Trabzon",
+    "country": "Türkiye",
+    "city_summary_tr": "Karadeniz kıyısında, tarihi manastırları, yaylaları ve panoramik seyir noktalarıyla öne çıkan güçlü bir kültür ve doğa şehri.",
+    "place": "Uzungöl",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/trabzon/gezilecekyer/uzungol",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Uzungol lake forest wooden houses Trabzon Turkey realistic travel photo"
+  },
+  {
+    "city": "Trabzon",
+    "country": "Türkiye",
+    "city_summary_tr": "Karadeniz kıyısında, tarihi manastırları, yaylaları ve panoramik seyir noktalarıyla öne çıkan güçlü bir kültür ve doğa şehri.",
+    "place": "Atatürk Köşkü",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/trabzon/gezilecekyer/ataturk-kosku",
+    "extractor": "kulturportali",
+    "score": 4,
+    "image_prompt": "Ataturk Mansion Trabzon white historic villa garden Turkey realistic travel photo"
+  },
+  {
+    "city": "Trabzon",
+    "country": "Türkiye",
+    "city_summary_tr": "Karadeniz kıyısında, tarihi manastırları, yaylaları ve panoramik seyir noktalarıyla öne çıkan güçlü bir kültür ve doğa şehri.",
+    "place": "Boztepe",
+    "source_url": "https://www.trabzonortahisar.bel.tr/hizmetler/seyir-terasi/6",
+    "extractor": "generic_meta",
+    "score": 5,
+    "image_prompt": "Boztepe viewpoint Trabzon black sea city panorama Turkey realistic travel photo"
+  },
+  {
+    "city": "İstanbul",
+    "country": "Türkiye",
+    "city_summary_tr": "Avrupa ile Asya'yı birleştiren; sarayları, camileri ve yüzyıllardır yaşayan çarşı kültürüyle katmanlı bir dünya metropolü.",
+    "place": "Ayasofya",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/istanbul/gezilecekyer/ayasofya-muzesi",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Hagia Sophia Istanbul historical mosque architecture Turkey realistic travel photo"
+  },
+  {
+    "city": "İstanbul",
+    "country": "Türkiye",
+    "city_summary_tr": "Avrupa ile Asya'yı birleştiren; sarayları, camileri ve yüzyıllardır yaşayan çarşı kültürüyle katmanlı bir dünya metropolü.",
+    "place": "Topkapı Sarayı",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/istanbul/gezilecekyer/topkapi-sarayi",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Topkapi Palace Istanbul ottoman courtyard museum Turkey realistic travel photo"
+  },
+  {
+    "city": "İstanbul",
+    "country": "Türkiye",
+    "city_summary_tr": "Avrupa ile Asya'yı birleştiren; sarayları, camileri ve yüzyıllardır yaşayan çarşı kültürüyle katmanlı bir dünya metropolü.",
+    "place": "Kapalıçarşı",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/istanbul/gezilecekyer/kapalicarsi",
+    "extractor": "kulturportali",
+    "score": 4,
+    "image_prompt": "Grand Bazaar Istanbul covered market lanterns Turkey realistic travel photo"
+  }
+]
