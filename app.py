@@ -1,25 +1,87 @@
 """
 BIP210 - Final Projesi: YZ Destekli Gezi Rehberi
-app.py - Streamlit Frontend (Son Kullanıcı Odaklı Tasarım)
+app.py - Streamlit Frontend
+
+Önemli:
+- Localde varsayılan olarak http://localhost:1337 kullanır.
+- Streamlit Cloud'da STRAPI_URL ve STRAPI_TOKEN değerlerini Secrets'tan okur.
+- Strapi/Render görseli çalışmıyorsa kartları boş bırakmaz, otomatik yedek görsel gösterir.
 """
 
-import streamlit as st
-import requests
+import hashlib
+import html
 import os
+from urllib.parse import quote, urlparse
+
+import requests
+import streamlit as st
+
 
 # ══════════════════════════════════════════════
-STRAPI_URL   = os.getenv("STRAPI_API_URL", "http://localhost:1337")
-STRAPI_TOKEN = os.getenv("STRAPI_API_TOKEN", "")
+# AYARLAR
 # ══════════════════════════════════════════════
+def ayar_al(adlar, varsayilan: str = "") -> str:
+    """
+    Birden fazla isimle ayar okuyabilir.
+    Örn: STRAPI_URL yoksa STRAPI_API_URL değerini de kabul eder.
+    Böylece local, Streamlit Cloud ve eski secret isimleri birlikte çalışır.
+    """
+    if isinstance(adlar, str):
+        adlar = [adlar]
 
+    try:
+        for ad in adlar:
+            deger = st.secrets.get(ad, None)
+            if deger is not None and str(deger).strip():
+                return str(deger).strip()
+    except Exception:
+        pass
+
+    for ad in adlar:
+        deger = os.getenv(ad)
+        if deger is not None and str(deger).strip():
+            return str(deger).strip()
+
+    return varsayilan
+
+
+# Önerilen isimler: STRAPI_URL ve STRAPI_TOKEN
+# Senin Streamlit Cloud'da yazdığın eski isimler de destekleniyor:
+# STRAPI_API_URL ve STRAPI_API_TOKEN
+STRAPI_URL = ayar_al(["STRAPI_URL", "STRAPI_API_URL"], "http://localhost:1337").rstrip("/")
+STRAPI_TOKEN = ayar_al(["STRAPI_TOKEN", "STRAPI_API_TOKEN"], "").strip()
+
+
+def auth_headers() -> dict:
+    """
+    Public izinler açıksa token şart değildir.
+    Token varsa Authorization header gönderilir.
+    """
+    if STRAPI_TOKEN:
+        return {"Authorization": f"Bearer {STRAPI_TOKEN}"}
+    return {}
+
+
+def stable_seed(text: str) -> int:
+    return int(hashlib.md5(str(text).encode("utf-8")).hexdigest(), 16) % 10000
+
+
+def guvenli_metin(deger) -> str:
+    return html.escape(str(deger or ""), quote=True)
+
+
+# ══════════════════════════════════════════════
+# SAYFA
+# ══════════════════════════════════════════════
 st.set_page_config(
     page_title="Gezi Rehberi — Türkiye'yi Keşfet",
     page_icon="🗺️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
-st.markdown("""
+st.markdown(
+    """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
 
@@ -122,7 +184,6 @@ div[data-testid="stDecoration"] { display: none !important; }
     margin-bottom: 20px;
 }
 .hero-title .accent { color: #22c55e; }
-.hero-title .muted { color: rgba(255,255,255,0.35); }
 .hero-sub {
     position: relative;
     font-size: 1.1rem;
@@ -274,11 +335,13 @@ div[data-baseweb="select"] > div:hover {
 .mcard-img-overlay {
     position: absolute; inset: 0;
     background: linear-gradient(to top, rgba(14,20,32,0.85) 0%, transparent 50%);
+    pointer-events: none;
 }
 .mcard-img-badges {
     position: absolute; top: 14px;
     width: 100%; padding: 0 14px;
     display: flex; justify-content: space-between; align-items: flex-start;
+    pointer-events: none;
 }
 .img-badge-left {
     font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
@@ -299,6 +362,7 @@ div[data-baseweb="select"] > div:hover {
 .mcard-img-title {
     position: absolute; bottom: 0; left: 0; right: 0;
     padding: 14px 20px 16px;
+    pointer-events: none;
 }
 .mcard-img-title h3 {
     font-size: 1.15rem; font-weight: 700; color: #ffffff;
@@ -357,19 +421,32 @@ div[data-baseweb="select"] > div:hover {
     border: 1px solid rgba(255,255,255,0.06);
     padding: 4px 10px; border-radius: 8px;
 }
+
+@media (max-width: 900px) {
+    .navbar, .toolbar-section, .section-head, .grid-outer, .site-footer { padding-left: 20px; padding-right: 20px; }
+    .hero-section { padding: 70px 20px 50px; min-height: 380px; }
+    .city-hero { margin: 0 20px; flex-direction: column; align-items: flex-start; }
+    .city-hero-badge { margin-left: 0; }
+    .hero-stats { flex-wrap: wrap; }
+    .hero-stat { min-width: 50%; }
+}
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# ── VERİ ──────────────────────────────────────
-def auth_headers():
-    return {"Authorization": f"Bearer {STRAPI_TOKEN}"}
 
+# ══════════════════════════════════════════════
+# VERİ FONKSİYONLARI
+# ══════════════════════════════════════════════
 @st.cache_data(ttl=60, show_spinner=False)
-def sehirleri_getir(dil="tr"):
+def sehirleri_getir(dil: str = "tr"):
     try:
         r = requests.get(
             f"{STRAPI_URL}/api/cities?locale={dil}&pagination[pageSize]=100&sort=ad:asc",
-            headers=auth_headers(), timeout=10)
+            headers=auth_headers(),
+            timeout=15,
+        )
         r.raise_for_status()
         return r.json().get("data", [])
     except requests.exceptions.ConnectionError:
@@ -377,57 +454,202 @@ def sehirleri_getir(dil="tr"):
     except Exception:
         return []
 
+
 @st.cache_data(ttl=60, show_spinner=False)
-def mekanlari_getir(sehir_doc_id, dil="tr"):
-    for filtre in [f"filters[city][documentId][$eq]={sehir_doc_id}",
-                   f"filters[city][id][$eq]={sehir_doc_id}"]:
+def mekanlari_getir(sehir_doc_id, dil: str = "tr"):
+    filtreler = [
+        f"filters[city][documentId][$eq]={sehir_doc_id}",
+        f"filters[city][id][$eq]={sehir_doc_id}",
+    ]
+
+    for filtre in filtreler:
         try:
             r = requests.get(
                 f"{STRAPI_URL}/api/places?{filtre}&populate=*&locale={dil}"
                 f"&pagination[pageSize]=50&sort=puan:desc",
-                headers=auth_headers(), timeout=10)
+                headers=auth_headers(),
+                timeout=15,
+            )
             r.raise_for_status()
             data = r.json().get("data", [])
-            if data: return data
+            if data:
+                return data
         except Exception:
             continue
+
     return []
 
-def gorsel_url_al(mekan):
-    def tam(url):
-        if not url: return None
-        return f"{STRAPI_URL}{url}" if url.startswith("/") else url
+
+def alan(kayit: dict, alan_adi: str, varsayilan=""):
+    if isinstance(kayit, dict) and alan_adi in kayit:
+        return kayit.get(alan_adi, varsayilan)
+
+    attrs = kayit.get("attributes", {}) if isinstance(kayit, dict) else {}
+    return attrs.get(alan_adi, varsayilan)
+
+
+def strapi_url_mu(url: str) -> bool:
+    if not url:
+        return False
+
+    try:
+        host = urlparse(url).netloc.lower()
+        strapi_host = urlparse(STRAPI_URL).netloc.lower()
+        return host == strapi_host or host in {"localhost:1337", "127.0.0.1:1337"}
+    except Exception:
+        return False
+
+
+def tam_gorsel_url(url: str):
+    if not url:
+        return None
+
+    url = str(url).strip()
+
+    if not url:
+        return None
+
+    if url.startswith("//"):
+        return "https:" + url
+
+    if url.startswith("/"):
+        return f"{STRAPI_URL}{url}"
+
+    parsed = urlparse(url)
+
+    # DB içinde localhost olarak kaydedilmiş medya varsa ve uygulama bulutta çalışıyorsa,
+    # aynı path'i Render STRAPI_URL üzerine taşı.
+    if parsed.netloc.lower() in {"localhost:1337", "127.0.0.1:1337"} and not STRAPI_URL.startswith("http://localhost"):
+        return f"{STRAPI_URL}{parsed.path}"
+
+    return url
+
+
+def gorsel_url_al(mekan: dict):
+    """
+    Strapi v5 ve v4 benzeri populate yapılarını destekler.
+    kapak_resmi.url, kapak_resmi.formats.*, kapak_resmi.data.attributes.url yapılarını dener.
+    """
     try:
         kapak = mekan.get("kapak_resmi")
+
         if isinstance(kapak, dict):
-            if kapak.get("url"): return tam(kapak["url"])
-            for b in ["large","medium","small","thumbnail"]:
-                u = kapak.get("formats", {}).get(b, {}).get("url")
-                if u: return tam(u)
-            data = kapak.get("data", {})
+            if kapak.get("url"):
+                return tam_gorsel_url(kapak.get("url"))
+
+            formats = kapak.get("formats") or {}
+            for boyut in ["large", "medium", "small", "thumbnail"]:
+                u = (formats.get(boyut) or {}).get("url")
+                if u:
+                    return tam_gorsel_url(u)
+
+            data = kapak.get("data")
             if isinstance(data, dict):
-                u = data.get("url") or data.get("attributes", {}).get("url")
-                if u: return tam(u)
-        attrs = mekan.get("attributes", {})
-        data2 = attrs.get("kapak_resmi", {}).get("data", {})
-        if isinstance(data2, dict):
-            u = data2.get("url") or data2.get("attributes", {}).get("url")
-            if u: return tam(u)
+                if data.get("url"):
+                    return tam_gorsel_url(data.get("url"))
+
+                attrs = data.get("attributes") or {}
+                if attrs.get("url"):
+                    return tam_gorsel_url(attrs.get("url"))
+
+                formats2 = attrs.get("formats") or {}
+                for boyut in ["large", "medium", "small", "thumbnail"]:
+                    u = (formats2.get(boyut) or {}).get("url")
+                    if u:
+                        return tam_gorsel_url(u)
+
+        attrs = mekan.get("attributes") or {}
+        medya = attrs.get("kapak_resmi") or {}
+
+        if isinstance(medya, dict):
+            data2 = medya.get("data")
+
+            if isinstance(data2, dict):
+                if data2.get("url"):
+                    return tam_gorsel_url(data2.get("url"))
+
+                attrs2 = data2.get("attributes") or {}
+                if attrs2.get("url"):
+                    return tam_gorsel_url(attrs2.get("url"))
+
+                formats3 = attrs2.get("formats") or {}
+                for boyut in ["large", "medium", "small", "thumbnail"]:
+                    u = (formats3.get(boyut) or {}).get("url")
+                    if u:
+                        return tam_gorsel_url(u)
+
     except Exception:
         pass
+
     return None
 
-def alan(m, k):
-    if k in m: return m[k]
-    return m.get("attributes", {}).get(k, "")
+
+@st.cache_data(ttl=300, show_spinner=False)
+def url_calisiyor_mu(url: str) -> bool:
+    """
+    Sadece Strapi/Render medya URL'lerini test eder.
+    Bozuk Render uploads kayıtlarını yakalayıp kartları boş bırakmamak için kullanılır.
+    Harici yedek görselleri test etmiyoruz, yoksa sayfa gereksiz yavaşlar.
+    """
+    if not url:
+        return False
+
+    try:
+        r = requests.get(url, timeout=8, stream=True)
+        content_type = r.headers.get("content-type", "").lower()
+        return r.status_code == 200 and "image" in content_type
+    except Exception:
+        return False
+
+
+def yedek_gorsel_url(adi: str, sehir: str) -> str:
+    """
+    Strapi görseli yoksa ya da Render'da dosya silinmişse boş kart yerine
+    mekana göre AI görseli gösterir.
+    """
+    prompt = quote(f"{sehir} {adi} Turkey travel landmark realistic photo")
+    seed = stable_seed(f"{sehir}-{adi}")
+    return (
+        f"https://image.pollinations.ai/prompt/{prompt}"
+        f"?width=800&height=500&nologo=true&seed={seed}"
+    )
+
+
+def guvenli_gorsel_url(mekan: dict, adi: str, sehir: str) -> str:
+    gorsel = gorsel_url_al(mekan)
+
+    # Strapi/Render görseli varsa ama dosya artık yoksa fallback'e geç.
+    if gorsel and strapi_url_mu(gorsel):
+        if url_calisiyor_mu(gorsel):
+            return gorsel
+        return yedek_gorsel_url(adi, sehir)
+
+    # Cloudinary veya başka tam URL geldiyse doğrudan kullan.
+    if gorsel:
+        return gorsel
+
+    return yedek_gorsel_url(adi, sehir)
+
 
 def yildiz(puan):
-    p = int(puan or 0)
-    d = ''.join(['<span class="star-f">★</span>' if i<p else '<span class="star-e">★</span>' for i in range(5)])
-    return d
+    try:
+        p = max(0, min(5, int(puan or 0)))
+    except Exception:
+        p = 0
 
-# ── NAVBAR ──────────────────────────────────────
-st.markdown("""
+    return "".join(
+        [
+            '<span class="star-f">★</span>' if i < p else '<span class="star-e">★</span>'
+            for i in range(5)
+        ]
+    )
+
+
+# ══════════════════════════════════════════════
+# NAVBAR
+# ══════════════════════════════════════════════
+st.markdown(
+    """
 <div class="navbar">
   <div class="nav-brand">
     <div class="nav-brand-icon">🗺️</div>
@@ -437,21 +659,40 @@ st.markdown("""
     <span class="nav-tag">BIP210 · Final</span>
   </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# ── VERİ YÜKLE ──────────────────────────────────
+
+# ══════════════════════════════════════════════
+# VERİ YÜKLE
+# ══════════════════════════════════════════════
 sehirler = sehirleri_getir("tr")
 
 if sehirler is None:
-    st.markdown('<div class="msg-box msg-error">❌ <strong>Strapi bağlantısı yok.</strong> Terminalde <code>npm run develop</code> çalıştırın.</div>', unsafe_allow_html=True)
-    st.stop()
-if not sehirler:
-    st.markdown('<div class="msg-box msg-warn">⚠️ Şehir verisi bulunamadı. <code>python otomasyon.py</code> çalıştırın.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="msg-box msg-error">❌ <strong>Strapi bağlantısı yok.</strong> '
+        "Localde çalışıyorsan backend terminalinde <code>npm run develop</code> çalıştır. "
+        "Bulutta çalışıyorsan Streamlit Secrets içindeki <code>STRAPI_URL</code> değerini kontrol et.</div>",
+        unsafe_allow_html=True,
+    )
     st.stop()
 
-# ── HERO ────────────────────────────────────────
-sehir_sayisi  = len(sehirler)
-st.markdown(f"""
+if not sehirler:
+    st.markdown(
+        '<div class="msg-box msg-warn">⚠️ Şehir verisi bulunamadı. '
+        "Önce <code>python otomasyon.py</code> çalıştır veya Strapi Public izinlerini kontrol et.</div>",
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+
+# ══════════════════════════════════════════════
+# HERO
+# ══════════════════════════════════════════════
+sehir_sayisi = len(sehirler)
+st.markdown(
+    f"""
 <div class="hero-section">
   <div class="hero-bg"></div>
   <div class="hero-grid"></div>
@@ -465,43 +706,62 @@ st.markdown(f"""
     <div class="hero-stat"><div class="sv">AI</div><div class="sl">Görsel</div></div>
   </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# ── TOOLBAR ─────────────────────────────────────
+
+# ══════════════════════════════════════════════
+# TOOLBAR
+# ══════════════════════════════════════════════
 st.markdown('<div class="toolbar-section">', unsafe_allow_html=True)
 st.markdown('<div class="toolbar-label">Şehir & Dil Seçin</div>', unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns([2, 1, 4])
+
 with col1:
-    sehir_map   = {alan(s, "ad"): s for s in sehirler}
-    secilen_ad  = st.selectbox("Şehir", list(sehir_map.keys()), label_visibility="collapsed")
+    sehir_map = {str(alan(s, "ad")): s for s in sehirler if alan(s, "ad")}
+    secilen_ad = st.selectbox("Şehir", list(sehir_map.keys()), label_visibility="collapsed")
+
 with col2:
-    dil = st.selectbox("Dil", ["tr", "en"],
-                       format_func=lambda x: "🇹🇷 Türkçe" if x == "tr" else "🇬🇧 English",
-                       label_visibility="collapsed")
+    dil = st.selectbox(
+        "Dil",
+        ["tr", "en"],
+        format_func=lambda x: "🇹🇷 Türkçe" if x == "tr" else "🇬🇧 English",
+        label_visibility="collapsed",
+    )
 
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-# ── ŞEHİR VERİSİ ────────────────────────────────
-secilen      = sehir_map[secilen_ad]
+
+# ══════════════════════════════════════════════
+# ŞEHİR VERİSİ
+# ══════════════════════════════════════════════
+secilen = sehir_map[secilen_ad]
 sehir_doc_id = secilen.get("documentId") or secilen.get("id")
 
 sehirler_dil = sehirleri_getir(dil)
-secilen_dil  = next((s for s in (sehirler_dil or []) if alan(s,"ad") == secilen_ad), secilen)
+secilen_dil = next((s for s in (sehirler_dil or []) if alan(s, "ad") == secilen_ad), secilen)
 
-ulke  = alan(secilen_dil, "ulke")
-bilgi = alan(secilen_dil, "kisa_bilgi")
+ulke = guvenli_metin(alan(secilen_dil, "ulke"))
+bilgi = guvenli_metin(alan(secilen_dil, "kisa_bilgi"))
 
-mekanlar  = mekanlari_getir(sehir_doc_id, dil)
+mekanlar = mekanlari_getir(sehir_doc_id, dil)
 mekan_say = len(mekanlar)
 
-# ── ŞEHİR HERO KARTI ────────────────────────────
-st.markdown(f"""
+secilen_ad_html = guvenli_metin(secilen_ad)
+
+
+# ══════════════════════════════════════════════
+# ŞEHİR HERO KARTI
+# ══════════════════════════════════════════════
+st.markdown(
+    f"""
 <div style="padding: 32px 48px 0;">
 <div class="city-hero">
   <div class="city-hero-icon">📍</div>
   <div style="flex:1; min-width:0;">
-    <div class="city-hero-name">{secilen_ad}</div>
+    <div class="city-hero-name">{secilen_ad_html}</div>
     <div class="city-hero-country">🌍 {ulke}</div>
     <div class="city-hero-desc">{bilgi}</div>
   </div>
@@ -511,72 +771,96 @@ st.markdown(f"""
   </div>
 </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-# ── BÖLÜM BAŞLIĞI ───────────────────────────────
+
+# ══════════════════════════════════════════════
+# BÖLÜM BAŞLIĞI
+# ══════════════════════════════════════════════
 dil_etiket = "🇹🇷 TR" if dil == "tr" else "🇬🇧 EN"
-baslik_txt  = "Mekânları Keşfet" if dil == "tr" else "Explore Places"
+baslik_txt = "Mekânları Keşfet" if dil == "tr" else "Explore Places"
 
-st.markdown(f"""
+st.markdown(
+    f"""
 <div class="section-head">
   <span style="font-size:1.3rem">🏛️</span>
-  <span class="section-head-title">{secilen_ad} · {baslik_txt}</span>
+  <span class="section-head-title">{secilen_ad_html} · {baslik_txt}</span>
   <span class="section-pill pill-count">{mekan_say} mekân</span>
   <span class="section-pill pill-lang">{dil_etiket}</span>
   <span class="section-pill pill-ai">✦ AI + News</span>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 if not mekanlar:
-    st.markdown('<div class="msg-box msg-warn">⚠️ Bu şehir için mekân verisi bulunamadı.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="msg-box msg-warn">⚠️ Bu şehir için mekân verisi bulunamadı.</div>',
+        unsafe_allow_html=True,
+    )
     st.stop()
 
-# ── MEKAN GRİDİ ─────────────────────────────────
+
+# ══════════════════════════════════════════════
+# MEKAN GRİDİ
+# ══════════════════════════════════════════════
 st.markdown('<div class="grid-outer">', unsafe_allow_html=True)
 
 cols = st.columns(2, gap="large")
+
 for i, mekan in enumerate(mekanlar):
-    adi      = alan(mekan, "mekan_adi")
-    aciklama = alan(mekan, "aciklama")
-    puan     = alan(mekan, "puan") or 0
-    gorsel   = gorsel_url_al(mekan)
+    adi = str(alan(mekan, "mekan_adi") or "Mekân")
+    aciklama = str(alan(mekan, "aciklama") or "")
+    puan = alan(mekan, "puan") or 0
     sehir_nm = secilen_ad
 
-    if not gorsel:
-        gorsel = f"https://picsum.photos/seed/{abs(hash(adi))%900}/800/500"
+    gorsel = guvenli_gorsel_url(mekan, adi, sehir_nm)
 
+    adi_html = guvenli_metin(adi)
+    aciklama_html = guvenli_metin(aciklama)
+    sehir_html = guvenli_metin(sehir_nm).upper()
+    puan_html = guvenli_metin(puan)
+    gorsel_html = guvenli_metin(gorsel)
     yldz = yildiz(puan)
 
     with cols[i % 2]:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div class="mcard">
           <div class="mcard-img">
-            <img src="{gorsel}" alt="{adi}"
-                 onerror="this.src='https://picsum.photos/seed/{abs(hash(adi))%400}/800/500'"/>
+            <img src="{gorsel_html}" alt="{adi_html}"/>
             <div class="mcard-img-overlay"></div>
             <div class="mcard-img-badges">
-              <span class="img-badge-left">{sehir_nm}</span>
-              <span class="img-badge-right">★ {puan}/5</span>
+              <span class="img-badge-left">{sehir_html}</span>
+              <span class="img-badge-right">★ {puan_html}/5</span>
             </div>
-            <div class="mcard-img-title"><h3>{adi}</h3></div>
+            <div class="mcard-img-title"><h3>{adi_html}</h3></div>
           </div>
           <div class="mcard-body">
-            <p class="mcard-desc">{aciklama}</p>
+            <p class="mcard-desc">{aciklama_html}</p>
           </div>
           <div class="mcard-footer">
             <div style="display:flex;align-items:center;gap:8px;">
               <div class="stars">{yldz}</div>
-              <span class="puan-label">{puan} / 5 puan</span>
+              <span class="puan-label">{puan_html} / 5 puan</span>
             </div>
             <span class="ai-tag">✦ AI Zenginleştirildi</span>
           </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-# ── FOOTER ──────────────────────────────────────
-st.markdown("""
+
+# ══════════════════════════════════════════════
+# FOOTER
+# ══════════════════════════════════════════════
+st.markdown(
+    """
 <div class="site-footer">
   <div class="footer-left">
     <strong>BIP210 · İçerik Yönetimi · Final Projesi</strong><br>
@@ -590,4 +874,6 @@ st.markdown("""
     <span class="footer-tag">i18n</span>
   </div>
 </div>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
