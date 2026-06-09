@@ -104,6 +104,7 @@ TEXT = {
 
 ROOT_DIR = Path(__file__).resolve().parent
 SOURCE_MEDIA_PATH = ROOT_DIR / "source_media_manifest.json"
+FALLBACK_CONTENT_PATH = ROOT_DIR / "fallback_content_manifest.json"
 
 
 def normalize_key(value: object) -> str:
@@ -123,13 +124,27 @@ def load_source_media_manifest() -> list[dict]:
     return []
 
 
+def load_fallback_content_manifest() -> list[dict]:
+    try:
+        with FALLBACK_CONTENT_PATH.open("r", encoding="utf-8") as source_file:
+            data = json.load(source_file)
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+    except Exception:
+        pass
+    return []
+
+
 SOURCE_MEDIA_ITEMS = load_source_media_manifest()
+FALLBACK_CONTENT_ITEMS = load_fallback_content_manifest()
 CANONICAL_CITY_ORDER: list[str] = []
 CANONICAL_CITY_KEYS: set[str] = set()
 CANONICAL_PLACES_BY_CITY: dict[str, list[str]] = {}
 OFFICIAL_IMAGE_BY_KEY: dict[tuple[str, str], str] = {}
 CANONICAL_COUNTRY_BY_CITY: dict[str, str] = {}
 CANONICAL_CITY_SUMMARY_TR: dict[str, str] = {}
+FALLBACK_CITY_DATA_BY_KEY: dict[str, dict[str, object]] = {}
+FALLBACK_PLACES_BY_CITY: dict[str, list[dict[str, object]]] = {}
 
 for item in SOURCE_MEDIA_ITEMS:
     city_name = str(item.get("city") or "").strip()
@@ -154,6 +169,35 @@ for item in SOURCE_MEDIA_ITEMS:
 
 CANONICAL_TOTAL_PLACES = sum(len(places) for places in CANONICAL_PLACES_BY_CITY.values())
 
+for item in FALLBACK_CONTENT_ITEMS:
+    city_name = str(item.get("city") or "").strip()
+    place_name = str(item.get("place") or "").strip()
+    city_key = normalize_key(city_name)
+    place_key = normalize_key(place_name)
+    if not city_key or not place_key:
+        continue
+
+    if city_key not in FALLBACK_CITY_DATA_BY_KEY:
+        FALLBACK_CITY_DATA_BY_KEY[city_key] = {
+            "city": city_name,
+            "country_tr": str(item.get("country_tr") or "").strip(),
+            "country_en": str(item.get("country_en") or "").strip(),
+            "city_summary_tr": str(item.get("city_summary_tr") or "").strip(),
+            "city_summary_en": str(item.get("city_summary_en") or "").strip(),
+        }
+
+    FALLBACK_PLACES_BY_CITY.setdefault(city_key, []).append(
+        {
+            "city": city_name,
+            "place": place_name,
+            "description_tr": str(item.get("description_tr") or "").strip(),
+            "description_en": str(item.get("description_en") or "").strip(),
+            "score": item.get("score", 0),
+            "official_image_url": str(item.get("official_image_url") or "").strip(),
+            "source_url": str(item.get("source_url") or "").strip(),
+        }
+    )
+
 
 def official_image_url_for(city_name: str, place_name: str) -> str | None:
     return OFFICIAL_IMAGE_BY_KEY.get((normalize_key(city_name), normalize_key(place_name)))
@@ -169,6 +213,40 @@ def canonical_country_for_city(city_name: str) -> str:
 
 def canonical_city_summary_tr(city_name: str) -> str:
     return CANONICAL_CITY_SUMMARY_TR.get(normalize_key(city_name), "")
+
+
+def fallback_city_data(city_name: str) -> dict[str, object]:
+    return FALLBACK_CITY_DATA_BY_KEY.get(normalize_key(city_name), {})
+
+
+def fallback_country_for_city(city_name: str, lang: str) -> str:
+    data = fallback_city_data(city_name)
+    return str(data.get(f"country_{lang}") or data.get("country_tr") or "")
+
+
+def fallback_city_summary(city_name: str, lang: str) -> str:
+    data = fallback_city_data(city_name)
+    return str(data.get(f"city_summary_{lang}") or data.get("city_summary_tr") or "")
+
+
+def fallback_places_for_city(city_name: str, lang: str) -> list[dict]:
+    fallback_places = FALLBACK_PLACES_BY_CITY.get(normalize_key(city_name), [])
+    records: list[dict] = []
+
+    for item in fallback_places:
+        description = str(item.get(f"description_{lang}") or item.get("description_tr") or "").strip()
+        records.append(
+            {
+                "documentId": f"fallback-place::{normalize_key(city_name)}::{normalize_key(item.get('place'))}",
+                "mekan_adi": str(item.get("place") or "").strip(),
+                "aciklama": description,
+                "puan": item.get("score", 0),
+                "gorsel_yedek_url": str(item.get("official_image_url") or "").strip(),
+                "kaynak_url": str(item.get("source_url") or "").strip(),
+            }
+        )
+
+    return records
 
 
 def clean_api_token(value: str) -> str:
@@ -343,6 +421,34 @@ def city_by_name(cities: list[dict], city_name: str) -> dict | None:
         if normalize_key(field(city, "ad")) == target_key:
             return city
     return None
+
+
+def city_name_from_key(city_key: str) -> str:
+    target_key = normalize_key(city_key)
+    for city_name in CANONICAL_CITY_ORDER:
+        if normalize_key(city_name) == target_key:
+            return city_name
+    fallback_city = FALLBACK_CITY_DATA_BY_KEY.get(target_key) or {}
+    return str(fallback_city.get("city") or "")
+
+
+def build_city_options(cities_tr: list[dict], cities_ui: list[dict]) -> list[dict[str, str]]:
+    preferred_names = CANONICAL_CITY_ORDER or [str(field(city, "ad") or "").strip() for city in cities_tr]
+    options: list[dict[str, str]] = []
+    seen: set[str] = set()
+
+    for city_name in preferred_names:
+        city_key = normalize_key(city_name)
+        if not city_key or city_key in seen:
+            continue
+
+        seen.add(city_key)
+        base_city = city_by_name(cities_tr, city_name) or city_by_name(cities_ui, city_name)
+        ui_city = city_by_name(cities_ui, city_name) or base_city
+        label = str(field(ui_city or base_city or {}, "ad") or city_name)
+        options.append({"id": city_key, "city_name": city_name, "label": label})
+
+    return options
 
 
 def image_url_from_place(place: dict) -> str | None:
@@ -540,6 +646,25 @@ def filter_canonical_places(places: list[dict], city_name: str) -> list[dict]:
         if place:
             ordered_places.append(place)
     return ordered_places
+
+
+def merge_places_with_fallback(api_places: list[dict], city_name: str, lang: str) -> list[dict]:
+    fallback_places = fallback_places_for_city(city_name, lang)
+    if not fallback_places:
+        return api_places
+
+    api_by_key = {normalize_key(field(place, "mekan_adi")): place for place in api_places}
+    fallback_by_key = {normalize_key(field(place, "mekan_adi")): place for place in fallback_places}
+    ordered_names = canonical_place_names(city_name) or [str(field(place, "mekan_adi") or "") for place in fallback_places]
+
+    merged_places: list[dict] = []
+    for place_name in ordered_names:
+        place_key = normalize_key(place_name)
+        place = api_by_key.get(place_key) or fallback_by_key.get(place_key)
+        if place:
+            merged_places.append(place)
+
+    return merged_places
 
 
 def stars(score: object) -> str:
@@ -971,9 +1096,10 @@ div[data-baseweb="select"] > div {
 )
 
 
-cities_tr = fetch_cities("tr")
+cities_tr_response = fetch_cities("tr")
+cities_tr = cities_tr_response or []
 
-if cities_tr is None:
+if cities_tr_response is None and not FALLBACK_CONTENT_ITEMS:
     st.markdown(
         (
             f'<div class="message message-error"><strong>{safe_text(t("no_connection_title", ui_lang))}</strong> '
@@ -983,7 +1109,7 @@ if cities_tr is None:
     )
     st.stop()
 
-if not cities_tr:
+if not cities_tr and not FALLBACK_CONTENT_ITEMS:
     st.markdown(
         f'<div class="message message-warn">{safe_text(t("no_cities", ui_lang))}</div>',
         unsafe_allow_html=True,
@@ -991,24 +1117,20 @@ if not cities_tr:
     st.stop()
 
 
-city_document_ids = [str(field(city, "documentId") or field(city, "id")) for city in cities_tr]
-if "selected_city_docid" not in st.session_state or st.session_state["selected_city_docid"] not in city_document_ids:
-    st.session_state["selected_city_docid"] = city_document_ids[0]
 if "ui_lang" not in st.session_state:
     st.session_state["ui_lang"] = "tr"
 
 
 current_lang = st.session_state.get("ui_lang", "tr")
-cities_ui = fetch_cities(current_lang) or cities_tr
-city_count = len(CANONICAL_CITY_ORDER) if CANONICAL_CITY_ORDER else len({field(city, "documentId") for city in cities_tr})
+cities_ui = fetch_cities(current_lang) or []
+city_options = build_city_options(cities_tr, cities_ui)
+city_option_ids = [option["id"] for option in city_options]
+if "selected_city_key" not in st.session_state or st.session_state["selected_city_key"] not in city_option_ids:
+    st.session_state["selected_city_key"] = city_option_ids[0]
+city_count = len(city_option_ids) if city_option_ids else len(CANONICAL_CITY_ORDER)
 total_places = fetch_total_places()
 
-city_label_map = {}
-for document_id in city_document_ids:
-    base_city = city_by_document_id(cities_tr, document_id) or city_by_document_id(cities_ui, document_id)
-    base_city_name = str(field(base_city or {}, "ad") or "")
-    city_record = city_by_name(cities_ui, base_city_name) or base_city
-    city_label_map[document_id] = str(field(city_record or {}, "ad") or document_id)
+city_label_map = {option["id"]: option["label"] for option in city_options}
 
 
 st.markdown(
@@ -1050,9 +1172,9 @@ col_city, col_lang, _ = st.columns([2.2, 1, 3.2])
 with col_city:
     st.selectbox(
         t("city_label", current_lang),
-        options=city_document_ids,
+        options=city_option_ids,
         format_func=lambda item: city_label_map.get(item, item),
-        key="selected_city_docid",
+        key="selected_city_key",
         label_visibility="collapsed",
     )
 with col_lang:
@@ -1068,26 +1190,31 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 
 current_lang = st.session_state.get("ui_lang", "tr")
-selected_city_docid = st.session_state.get("selected_city_docid", city_document_ids[0])
-cities_ui = fetch_cities(current_lang) or cities_tr
+selected_city_key = st.session_state.get("selected_city_key", city_option_ids[0])
+cities_ui = fetch_cities(current_lang) or []
 
-base_selected_city = city_by_document_id(cities_tr, selected_city_docid) or city_by_document_id(cities_ui, selected_city_docid)
-base_selected_city_name = str(field(base_selected_city or {}, "ad") or "")
-selected_city = city_by_name(cities_ui, base_selected_city_name) or base_selected_city
+selected_city_name = city_name_from_key(selected_city_key)
+base_selected_city = city_by_name(cities_tr, selected_city_name) or city_by_name(cities_ui, selected_city_name)
+selected_city = city_by_name(cities_ui, selected_city_name) or base_selected_city
 selected_city_name = str(field(selected_city or {}, "ad") or "")
-active_city_document_id = str(field(selected_city or {}, "documentId") or selected_city_docid)
-selected_country_raw = str(field(selected_city or {}, "ulke") or "").strip() or canonical_country_for_city(selected_city_name)
+if not selected_city_name:
+    selected_city_name = city_name_from_key(selected_city_key)
+active_city_document_id = str(field(selected_city or {}, "documentId") or "")
+selected_country_raw = str(field(selected_city or {}, "ulke") or "").strip() or fallback_country_for_city(selected_city_name, current_lang) or canonical_country_for_city(selected_city_name)
 selected_info_raw = str(field(selected_city or {}, "kisa_bilgi") or "").strip()
 if not selected_info_raw:
-    fallback_city = city_by_document_id(cities_tr, selected_city_docid)
+    fallback_city = city_by_name(cities_tr, selected_city_name)
     selected_info_raw = str(field(fallback_city or {}, "kisa_bilgi") or "").strip()
+if not selected_info_raw:
+    selected_info_raw = fallback_city_summary(selected_city_name, current_lang)
 if not selected_info_raw and current_lang == "tr":
     selected_info_raw = canonical_city_summary_tr(selected_city_name)
 selected_country = safe_text(selected_country_raw)
 selected_info = safe_text(selected_info_raw)
 selected_city_name_html = safe_text(selected_city_name)
 
-places = filter_canonical_places(fetch_places(active_city_document_id, current_lang), selected_city_name)
+api_places = filter_canonical_places(fetch_places(active_city_document_id, current_lang), selected_city_name) if active_city_document_id else []
+places = merge_places_with_fallback(api_places, selected_city_name, current_lang)
 place_count = len(places)
 
 st.markdown(
