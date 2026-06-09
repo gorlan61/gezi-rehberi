@@ -125,6 +125,7 @@ python otomasyon.py --reset-strapi
 - GoTürkiye sayfaları bazı ortamlarda Cloudflare koruması nedeniyle sunucu taraflı `requests` erişimini engelleyebilir. Bu nedenle manifestte erişilebilir resmi sayfalar ağırlıklı olarak `Kültür Portalı` ve ilgili resmi belediye sayfalarıyla doldurulmuştur.
 - Strapi içerikleri `status=published` ile yazılır; importer aynı dokümanı güncelleyerek tekrar çalıştırılabilir.
 - Görsel yükleme için Cloudinary tanımlıysa kalıcı medya kullanılır, aksi halde Strapi local upload provider dev ortamında çalışır.
+- Her `Place` kaydında `gorsel_prompt`, `gorsel_seed` ve `gorsel_yedek_url` saklanır. Böylece live ortamda Strapi media dosyası silinse bile frontend aynı görseli yedek URL üzerinden göstermeye devam eder; importer yeniden çalıştırıldığında eksik medya tekrar yüklenir.
 
 ## Teslim İçin Kontrol Listesi
 

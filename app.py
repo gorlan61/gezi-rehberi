@@ -33,6 +33,7 @@ TEXT = {
         "stat_places": "Mekan",
         "stat_languages": "Dil",
         "stat_media": "Medya",
+        "stat_media_value": "Yedekli",
         "toolbar_label": "Sehir ve Dil Secimi",
         "city_label": "Sehir",
         "language_label": "Dil",
@@ -70,6 +71,7 @@ TEXT = {
         "stat_places": "Places",
         "stat_languages": "Languages",
         "stat_media": "Media",
+        "stat_media_value": "Backup",
         "toolbar_label": "City and Language",
         "city_label": "City",
         "language_label": "Language",
@@ -303,10 +305,42 @@ def remote_image_works(url: str) -> bool:
         return False
 
 
-def fallback_image_url(place_name: str, city_name: str) -> str:
-    prompt = quote(f"{city_name} {place_name} Turkey travel landmark realistic photo")
-    seed = stable_seed(f"{city_name}-{place_name}")
+def pollinations_image_url(prompt_text: str, seed: int) -> str:
+    prompt = quote(prompt_text)
     return f"https://image.pollinations.ai/prompt/{prompt}?width=800&height=500&nologo=true&seed={seed}"
+
+
+def picsum_fallback_url(seed: int) -> str:
+    return f"https://picsum.photos/seed/{seed}/800/500"
+
+
+def backup_image_url_from_place(place: dict) -> str | None:
+    raw_url = field(place, "gorsel_yedek_url", "")
+    stored_url = normalize_media_url(raw_url if isinstance(raw_url, str) else "")
+    if stored_url:
+        return stored_url
+
+    raw_prompt = field(place, "gorsel_prompt", "")
+    prompt = raw_prompt.strip() if isinstance(raw_prompt, str) else ""
+    raw_seed = field(place, "gorsel_seed", "")
+    try:
+        seed = int(raw_seed)
+    except Exception:
+        seed = stable_seed(prompt) if prompt else None
+
+    if prompt and seed is not None:
+        return pollinations_image_url(prompt, seed)
+
+    return None
+
+
+def fallback_image_url(place: dict, place_name: str, city_name: str) -> str:
+    backup_url = backup_image_url_from_place(place)
+    if backup_url:
+        return backup_url
+
+    seed = stable_seed(f"{city_name}-{place_name}")
+    return picsum_fallback_url(seed)
 
 
 def safe_image_url(place: dict, place_name: str, city_name: str) -> str:
@@ -314,10 +348,10 @@ def safe_image_url(place: dict, place_name: str, city_name: str) -> str:
     if image_url and is_same_strapi_host(image_url):
         if remote_image_works(image_url):
             return image_url
-        return fallback_image_url(place_name, city_name)
+        return fallback_image_url(place, place_name, city_name)
     if image_url:
         return image_url
-    return fallback_image_url(place_name, city_name)
+    return fallback_image_url(place, place_name, city_name)
 
 
 def stars(score: object) -> str:
@@ -811,7 +845,7 @@ st.markdown(
       <div class="hero-stat"><div class="hero-stat-value">{city_count}</div><div class="hero-stat-label">{safe_text(t("stat_cities", current_lang))}</div></div>
       <div class="hero-stat"><div class="hero-stat-value">{total_places}</div><div class="hero-stat-label">{safe_text(t("stat_places", current_lang))}</div></div>
       <div class="hero-stat"><div class="hero-stat-value">2</div><div class="hero-stat-label">{safe_text(t("stat_languages", current_lang))}</div></div>
-      <div class="hero-stat"><div class="hero-stat-value">CDN</div><div class="hero-stat-label">{safe_text(t("stat_media", current_lang))}</div></div>
+      <div class="hero-stat"><div class="hero-stat-value">{safe_text(t("stat_media_value", current_lang))}</div><div class="hero-stat-label">{safe_text(t("stat_media", current_lang))}</div></div>
     </div>
   </div>
 </div>

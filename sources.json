@@ -78,5 +78,75 @@
     "extractor": "kulturportali",
     "score": 4,
     "image_prompt": "Grand Bazaar Istanbul covered market lanterns Turkey realistic travel photo"
+  },
+  {
+    "city": "Ankara",
+    "country": "Türkiye",
+    "city_summary_tr": "Cumhuriyetin başkenti; anıtları, müzeleri, kaleleri ve Frig mirasıyla tarih ve devlet kimliğini bir arada taşıyan çok katmanlı bir şehir.",
+    "place": "Anıtkabir Atatürk ve Kurtuluş Savaşı Müzesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/ankara/gezilecekyer/anitkabr-ataturk-ve-kurtulus-savasi-muzes",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Anitkabir Ankara mausoleum ceremonial lions road Turkey realistic travel photo"
+  },
+  {
+    "city": "Ankara",
+    "country": "Türkiye",
+    "city_summary_tr": "Cumhuriyetin başkenti; anıtları, müzeleri, kaleleri ve Frig mirasıyla tarih ve devlet kimliğini bir arada taşıyan çok katmanlı bir şehir.",
+    "place": "Anadolu Medeniyetleri Müzesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/ankara/gezilecekyer/anadolu-medenyetler-muzes",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Museum of Anatolian Civilizations Ankara historic museum courtyard Turkey realistic travel photo"
+  },
+  {
+    "city": "Ankara",
+    "country": "Türkiye",
+    "city_summary_tr": "Cumhuriyetin başkenti; anıtları, müzeleri, kaleleri ve Frig mirasıyla tarih ve devlet kimliğini bir arada taşıyan çok katmanlı bir şehir.",
+    "place": "Ankara Kalesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/ankara/gezilecekyer/ankara-kalesi",
+    "extractor": "kulturportali",
+    "score": 4,
+    "image_prompt": "Ankara Castle citadel stone walls old town Turkey realistic travel photo"
+  },
+  {
+    "city": "Ankara",
+    "country": "Türkiye",
+    "city_summary_tr": "Cumhuriyetin başkenti; anıtları, müzeleri, kaleleri ve Frig mirasıyla tarih ve devlet kimliğini bir arada taşıyan çok katmanlı bir şehir.",
+    "place": "Gordion Antik Kenti",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/ankara/gezilecekyer/gordion-antik-kenti",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Gordion Ancient City Ankara archaeological site ruins Turkey realistic travel photo"
+  },
+  {
+    "city": "Antalya",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; antik kentleri, tarihi liman dokusu ve şelaleleriyle deniz, kültür ve doğayı aynı rotada birleştiren turizm başkenti.",
+    "place": "Kaleiçi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/antalya/gezilecekyer/kaleici",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Kaleici Antalya old town marina historic houses Turkey realistic travel photo"
+  },
+  {
+    "city": "Antalya",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; antik kentleri, tarihi liman dokusu ve şelaleleriyle deniz, kültür ve doğayı aynı rotada birleştiren turizm başkenti.",
+    "place": "Aspendos",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/antalya/gezilecekyer/aspendos",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Aspendos Theatre Antalya ancient roman amphitheatre Turkey realistic travel photo"
+  },
+  {
+    "city": "Antalya",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; antik kentleri, tarihi liman dokusu ve şelaleleriyle deniz, kültür ve doğayı aynı rotada birleştiren turizm başkenti.",
+    "place": "Düden Şelalesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/antalya/gezilecekyer/duden-selalesi",
+    "extractor": "kulturportali",
+    "score": 4,
+    "image_prompt": "Duden Waterfall Antalya cliffs and water Turkey realistic travel photo"
   }
 ]

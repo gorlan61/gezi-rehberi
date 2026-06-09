@@ -54,6 +54,30 @@
         "audios"
       ]
     },
+    "gorsel_prompt": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "gorsel_seed": {
+      "type": "integer",
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
+    "gorsel_yedek_url": {
+      "type": "text",
+      "pluginOptions": {
+        "i18n": {
+          "localized": false
+        }
+      }
+    },
     "city": {
       "type": "relation",
       "relation": "manyToOne",

@@ -20,6 +20,7 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import feedparser
 import requests
@@ -38,7 +39,7 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 POLLINATIONS_URL = (
     "https://image.pollinations.ai/prompt/{prompt}"
-    "?width=800&height=600&nologo=true&seed={seed}"
+    "?width={width}&height={height}&nologo=true&seed={seed}"
 )
 
 HTTP_HEADERS = {
@@ -115,6 +116,24 @@ def stable_seed(value: str) -> int:
 
 def record_key(record: SourceRecord) -> str:
     return f"{record.city}::{record.place}"
+
+
+def image_seed_from_prompt(prompt: str) -> int:
+    return stable_seed(prompt)
+
+
+def pollinations_image_url(prompt: str, seed: int, width: int = 800, height: int = 600) -> str:
+    encoded_prompt = requests.utils.quote(prompt)
+    return POLLINATIONS_URL.format(
+        prompt=encoded_prompt,
+        seed=seed,
+        width=width,
+        height=height,
+    )
+
+
+def picsum_image_url(seed: int, width: int = 800, height: int = 600) -> str:
+    return f"https://picsum.photos/seed/{seed}/{width}/{height}"
 
 
 def extract_meta_content(page_text: str, attr_name: str, attr_value: str) -> str:
@@ -410,6 +429,11 @@ def image_path_for(record: SourceRecord) -> Path:
     return IMAGE_DIR / file_name
 
 
+def backup_image_url_for_record(record: SourceRecord) -> str:
+    seed = image_seed_from_prompt(record.image_prompt)
+    return pollinations_image_url(record.image_prompt, seed)
+
+
 def download_image(record: SourceRecord) -> Path | None:
     IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     target = image_path_for(record)
@@ -417,9 +441,8 @@ def download_image(record: SourceRecord) -> Path | None:
     if target.exists() and target.stat().st_size > 1024:
         return target
 
-    prompt = requests.utils.quote(record.image_prompt)
-    seed = stable_seed(record.image_prompt)
-    image_url = POLLINATIONS_URL.format(prompt=prompt, seed=seed)
+    seed = image_seed_from_prompt(record.image_prompt)
+    image_url = pollinations_image_url(record.image_prompt, seed)
 
     try:
         response = requests.get(image_url, timeout=90)
@@ -431,7 +454,7 @@ def download_image(record: SourceRecord) -> Path | None:
         print(f"  [WARN] Pollinations hatasi: {exc}")
 
     try:
-        fallback_url = f"https://picsum.photos/seed/{seed}/800/600"
+        fallback_url = picsum_image_url(seed)
         response = requests.get(fallback_url, timeout=20, allow_redirects=True)
         response.raise_for_status()
         target.write_bytes(response.content)
@@ -494,6 +517,86 @@ def media_id_from_entry(entry: dict[str, Any] | None) -> int | None:
                 return data["id"]
 
     return None
+
+
+def normalize_media_url(url: str | None, base_url: str) -> str | None:
+    if not url:
+        return None
+
+    raw = str(url).strip()
+    if not raw:
+        return None
+    if raw.startswith("//"):
+        return "https:" + raw
+    if raw.startswith("/"):
+        return f"{base_url.rstrip('/')}{raw}"
+
+    parsed = urlparse(raw)
+    base_host = urlparse(base_url).netloc.lower()
+    if parsed.netloc.lower() in {"localhost:1337", "127.0.0.1:1337"} and base_host not in {
+        "localhost:1337",
+        "127.0.0.1:1337",
+    }:
+        return f"{base_url.rstrip('/')}{parsed.path}"
+
+    return raw
+
+
+def media_url_from_entry(entry: dict[str, Any] | None, base_url: str) -> str | None:
+    if not isinstance(entry, dict):
+        return None
+
+    media = entry.get("kapak_resmi")
+    if isinstance(media, dict):
+        if media.get("url"):
+            return normalize_media_url(media.get("url"), base_url)
+
+        formats = media.get("formats") or {}
+        for size in ("large", "medium", "small", "thumbnail"):
+            candidate = (formats.get(size) or {}).get("url")
+            if candidate:
+                return normalize_media_url(candidate, base_url)
+
+        data = media.get("data")
+        if isinstance(data, dict):
+            if data.get("url"):
+                return normalize_media_url(data.get("url"), base_url)
+            attrs = data.get("attributes") or {}
+            if attrs.get("url"):
+                return normalize_media_url(attrs.get("url"), base_url)
+
+    attrs = entry.get("attributes")
+    if isinstance(attrs, dict):
+        media = attrs.get("kapak_resmi") or {}
+        if isinstance(media, dict):
+            data = media.get("data")
+            if isinstance(data, dict):
+                if data.get("url"):
+                    return normalize_media_url(data.get("url"), base_url)
+                nested_attrs = data.get("attributes") or {}
+                if nested_attrs.get("url"):
+                    return normalize_media_url(nested_attrs.get("url"), base_url)
+
+    return None
+
+
+def is_same_strapi_host(url: str, base_url: str) -> bool:
+    try:
+        return urlparse(url).netloc.lower() == urlparse(base_url).netloc.lower()
+    except Exception:
+        return False
+
+
+def remote_image_available(url: str) -> bool:
+    if not url:
+        return False
+
+    try:
+        response = requests.get(url, timeout=12, stream=True)
+        content_type = response.headers.get("content-type", "").lower()
+        return response.status_code == 200 and "image" in content_type
+    except Exception:
+        return False
 
 
 class StrapiClient:
@@ -615,7 +718,7 @@ class StrapiClient:
         return payload[0]["id"] if payload else None
 
     def list_document_ids(self, collection: str) -> list[str]:
-        entries = self.find_many(collection, locale="all", status="published", page_size=200)
+        entries = self.find_many(collection, locale="tr", status="published", page_size=200)
         return sorted({field(entry, "documentId") for entry in entries if field(entry, "documentId")})
 
     def delete_document(self, collection: str, document_id: str) -> None:
@@ -759,6 +862,8 @@ def sync_places(
             description_en = metni_ingilizceye_cevir(enriched_tr)
 
             city_info = city_state[record.city]
+            image_seed = image_seed_from_prompt(record.image_prompt)
+            backup_url = backup_image_url_for_record(record)
             lookup = {
                 "filters[mekan_adi][$eq]": record.place,
                 "filters[city][documentId][$eq]": city_info["document_id"],
@@ -766,8 +871,16 @@ def sync_places(
             existing_tr = client.find_one("places", lookup, locale="tr", populate="*")
             document_id = field(existing_tr, "documentId") if existing_tr else None
             media_id = media_id_from_entry(existing_tr)
+            media_url = media_url_from_entry(existing_tr, client.base_url)
+            needs_media_refresh = media_id is None
 
-            if media_id is None:
+            if media_url and is_same_strapi_host(media_url, client.base_url) and not remote_image_available(
+                media_url
+            ):
+                print("  [WARN] Mevcut Strapi gorseli erisilemiyor, yeniden yukleme denenecek.")
+                needs_media_refresh = True
+
+            if needs_media_refresh:
                 image_path = local_images.get(record_key(record))
                 if image_path:
                     media_id = client.upload_file(image_path)
@@ -777,6 +890,9 @@ def sync_places(
                 "mekan_adi": record.place,
                 "aciklama": enriched_tr,
                 "puan": record.score,
+                "gorsel_prompt": record.image_prompt,
+                "gorsel_seed": image_seed,
+                "gorsel_yedek_url": backup_url,
                 "city": city_info["tr_id"],
             }
             if media_id is not None:
@@ -796,6 +912,9 @@ def sync_places(
                 "mekan_adi": record.place,
                 "aciklama": description_en,
                 "puan": record.score,
+                "gorsel_prompt": record.image_prompt,
+                "gorsel_seed": image_seed,
+                "gorsel_yedek_url": backup_url,
                 "city": city_info["en_id"] or city_info["tr_id"],
             }
             if media_id is not None:
