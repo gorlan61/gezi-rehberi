@@ -334,6 +334,18 @@ def backup_image_url_from_place(place: dict) -> str | None:
     return None
 
 
+def is_generated_image_url(url: str | None) -> bool:
+    if not url:
+        return False
+
+    try:
+        host = urlparse(url).netloc.lower()
+    except Exception:
+        return False
+
+    return host in {"image.pollinations.ai", "picsum.photos"}
+
+
 def fallback_image_url(place: dict, place_name: str, city_name: str) -> str:
     backup_url = backup_image_url_from_place(place)
     if backup_url:
@@ -344,6 +356,10 @@ def fallback_image_url(place: dict, place_name: str, city_name: str) -> str:
 
 
 def safe_image_url(place: dict, place_name: str, city_name: str) -> str:
+    backup_url = backup_image_url_from_place(place)
+    if backup_url and not is_generated_image_url(backup_url) and remote_image_works(backup_url):
+        return backup_url
+
     image_url = image_url_from_place(place)
     if image_url and is_same_strapi_host(image_url):
         if remote_image_works(image_url):

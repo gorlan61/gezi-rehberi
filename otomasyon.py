@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import functools
 import html
 import json
 import os
@@ -20,11 +21,11 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urljoin, urlparse
 
 import feedparser
 import requests
-from deep_translator import GoogleTranslator
+from deep_translator import GoogleTranslator, MyMemoryTranslator
 
 
 ROOT_DIR = Path(__file__).resolve().parent
@@ -35,6 +36,11 @@ SQLITE_PATH = BACKEND_DIR / ".tmp" / "data.db"
 BACKUP_DIR = BACKEND_DIR / ".tmp" / "backups"
 
 REQUEST_TIMEOUT = 25
+TRANSLATION_CHUNK_SIZE = 420
+TRANSLATION_OVERRIDES = {
+    "Türkiye": "Turkey",
+    "Turkiye": "Turkey",
+}
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 POLLINATIONS_URL = (
@@ -63,6 +69,13 @@ class SourceRecord:
     extractor: str
     score: int
     image_prompt: str
+
+
+@dataclass(frozen=True)
+class ExtractedSource:
+    title: str
+    description: str
+    image_url: str | None = None
 
 
 def load_env_file(path: Path) -> None:
@@ -151,6 +164,132 @@ def extract_meta_content(page_text: str, attr_name: str, attr_value: str) -> str
     return ""
 
 
+def extract_tag_attr(tag_text: str, attr_name: str) -> str:
+    escaped = re.escape(attr_name)
+    quoted_match = re.search(
+        rf"\b{escaped}\s*=\s*(['\"])(.*?)\1",
+        tag_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if quoted_match:
+        return normalize_text(quoted_match.group(2))
+
+    plain_match = re.search(
+        rf"\b{escaped}\s*=\s*([^\s>]+)",
+        tag_text,
+        flags=re.IGNORECASE,
+    )
+    if plain_match:
+        return normalize_text(plain_match.group(1))
+
+    return ""
+
+
+def normalize_source_image_url(url: str, page_url: str) -> str | None:
+    raw = normalize_text(url)
+    if not raw or raw.startswith("data:"):
+        return None
+    return urljoin(page_url, raw)
+
+
+def looks_like_noise_image(url: str, extra_text: str = "") -> bool:
+    comparable = slugify(f"{unquote(url)} {extra_text}")
+    noisy_fragments = (
+        "favicon",
+        "icon",
+        "sprite",
+        "loader",
+        "loading",
+        "placeholder",
+        "avatar",
+        "ataturkpng",
+        "yuvarlak",
+        "heart-logo",
+        "site-logo",
+        "logo-png",
+    )
+    return any(fragment in comparable for fragment in noisy_fragments)
+
+
+def choose_best_image_url(
+    page_text: str,
+    page_url: str,
+    title_hint: str = "",
+    preferred_fragments: tuple[str, ...] = (),
+    rejected_fragments: tuple[str, ...] = (),
+) -> str | None:
+    preferred = tuple(slugify(fragment) for fragment in preferred_fragments)
+    rejected = tuple(slugify(fragment) for fragment in rejected_fragments)
+    title_tokens = [token for token in slugify(title_hint).split("-") if len(token) > 3]
+    candidates: list[tuple[int, str]] = []
+
+    def score_candidate(url: str, context: str, base_score: int) -> int:
+        decoded_url = unquote(url)
+        comparable = slugify(f"{decoded_url} {context}")
+        url_comparable = slugify(decoded_url)
+        context_comparable = slugify(context)
+        score = base_score
+        url_hits = sum(1 for token in title_tokens if token and token in url_comparable)
+        context_hits = sum(1 for token in title_tokens if token and token in context_comparable)
+
+        if looks_like_noise_image(url, context):
+            score -= 80
+        if comparable.endswith("svg"):
+            score -= 80
+        if any(fragment and fragment in comparable for fragment in rejected):
+            score -= 40
+        if any(fragment and fragment in comparable for fragment in preferred):
+            score += 30
+        score += url_hits * 18
+        score += context_hits * 8
+        if url_hits >= 2:
+            score += 32
+        if base_score <= 30 and "/contents/images/" in decoded_url.lower():
+            score += 8
+        if any(fragment in comparable for fragment in ("gallery", "galeri", "hero", "cover", "banner", "slide")):
+            score += 6
+        return score
+
+    meta_candidates = (
+        extract_meta_content(page_text, "property", "og:image"),
+        extract_meta_content(page_text, "name", "twitter:image"),
+        extract_meta_content(page_text, "property", "og:image:url"),
+    )
+    for raw_url in meta_candidates:
+        normalized = normalize_source_image_url(raw_url, page_url) if raw_url else None
+        if normalized:
+            candidates.append((score_candidate(normalized, "", 70), normalized))
+
+    for tag_text in re.findall(r"<img\b[^>]*>", page_text, flags=re.IGNORECASE | re.DOTALL):
+        raw_url = (
+            extract_tag_attr(tag_text, "src")
+            or extract_tag_attr(tag_text, "data-src")
+            or extract_tag_attr(tag_text, "data-original")
+            or extract_tag_attr(tag_text, "data-lazy-src")
+        )
+        normalized = normalize_source_image_url(raw_url, page_url) if raw_url else None
+        if not normalized:
+            continue
+
+        alt_text = " ".join(
+            filter(
+                None,
+                (
+                    extract_tag_attr(tag_text, "alt"),
+                    extract_tag_attr(tag_text, "title"),
+                    extract_tag_attr(tag_text, "class"),
+                ),
+            )
+        )
+        candidates.append((score_candidate(normalized, alt_text, 30), normalized))
+
+    if not candidates:
+        return None
+
+    best_score, best_url = max(candidates, key=lambda item: item[0])
+    return best_url if best_score > 0 else None
+
+
 def strip_tags(fragment: str) -> str:
     without_noise = re.sub(
         r"<(script|style|noscript)[^>]*>.*?</\1>",
@@ -199,7 +338,8 @@ def fetch_html(url: str) -> str:
     return response.text
 
 
-def extract_kulturportali(url: str) -> tuple[str, str]:
+def extract_kulturportali(record: SourceRecord) -> ExtractedSource:
+    url = record.source_url
     response = requests.get(
         url,
         headers=HTTP_HEADERS,
@@ -232,10 +372,21 @@ def extract_kulturportali(url: str) -> tuple[str, str]:
     if not description:
         raise RuntimeError("Kultur Portali aciklamasi cikarilamadi.")
 
-    return trim_title(title), description
+    image_url = choose_best_image_url(
+        page,
+        response.url,
+        title_hint=record.place,
+    )
+
+    return ExtractedSource(
+        title=trim_title(title),
+        description=description,
+        image_url=image_url,
+    )
 
 
-def extract_goturkiye(url: str) -> tuple[str, str]:
+def extract_goturkiye(record: SourceRecord) -> ExtractedSource:
+    url = record.source_url
     response = requests.get(url, headers=HTTP_HEADERS, timeout=REQUEST_TIMEOUT)
     if response.status_code == 403 and "Just a moment" in response.text:
         raise RuntimeError("GoTürkiye sayfası Cloudflare koruması nedeniyle erişilemedi.")
@@ -256,11 +407,24 @@ def extract_goturkiye(url: str) -> tuple[str, str]:
     if not description:
         raise RuntimeError("GoTürkiye açıklaması çıkarılamadı.")
 
-    return trim_title(title), description
+    image_url = choose_best_image_url(
+        page,
+        response.url,
+        title_hint=record.place,
+        preferred_fragments=("goturkiye", record.place),
+    )
+
+    return ExtractedSource(
+        title=trim_title(title),
+        description=description,
+        image_url=image_url,
+    )
 
 
-def extract_generic_meta(url: str) -> tuple[str, str]:
-    page = fetch_html(url)
+def extract_generic_meta(record: SourceRecord) -> ExtractedSource:
+    response = requests.get(record.source_url, headers=HTTP_HEADERS, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()
+    page = response.text
     title = (
         extract_meta_content(page, "property", "og:title")
         or extract_meta_content(page, "name", "twitter:title")
@@ -281,7 +445,19 @@ def extract_generic_meta(url: str) -> tuple[str, str]:
     if not description:
         raise RuntimeError("Meta description cikarilamadi.")
 
-    return trim_title(title), description
+    image_url = choose_best_image_url(
+        page,
+        response.url,
+        title_hint=record.place,
+        preferred_fragments=("uploads/hizmetler", "uploads/hizmetler/galeri", record.place),
+        rejected_fragments=("logo", "default", "header", "footer"),
+    )
+
+    return ExtractedSource(
+        title=trim_title(title),
+        description=description,
+        image_url=image_url,
+    )
 
 
 EXTRACTORS = {
@@ -349,12 +525,96 @@ def google_news_al(city_name: str, place_name: str, max_haber: int = 3) -> list[
     return headlines
 
 
+def split_translation_chunks(text: str, max_chars: int = TRANSLATION_CHUNK_SIZE) -> list[str]:
+    normalized = normalize_text(text)
+    if not normalized:
+        return []
+    if len(normalized) <= max_chars:
+        return [normalized]
+
+    sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+", normalized) if part.strip()]
+    if not sentences:
+        sentences = [normalized]
+
+    chunks: list[str] = []
+    current = ""
+
+    for sentence in sentences:
+        if len(sentence) > max_chars:
+            words = sentence.split()
+            partial = ""
+            for word in words:
+                candidate = f"{partial} {word}".strip()
+                if partial and len(candidate) > max_chars:
+                    chunks.append(partial)
+                    partial = word
+                else:
+                    partial = candidate
+            if partial:
+                if current and len(f"{current} {partial}") <= max_chars:
+                    current = f"{current} {partial}".strip()
+                else:
+                    if current:
+                        chunks.append(current)
+                    current = partial
+            continue
+
+        candidate = f"{current} {sentence}".strip()
+        if current and len(candidate) > max_chars:
+            chunks.append(current)
+            current = sentence
+        else:
+            current = candidate
+
+    if current:
+        chunks.append(current)
+
+    return chunks
+
+
+@functools.lru_cache(maxsize=1024)
+def translate_chunk(chunk: str, provider_name: str) -> str:
+    if provider_name == "google":
+        return GoogleTranslator(source="tr", target="en").translate(chunk)
+    if provider_name == "mymemory":
+        return MyMemoryTranslator(source="turkish", target="english us").translate(chunk)
+    raise RuntimeError(f"Bilinmeyen ceviri saglayicisi: {provider_name}")
+
+
+def translated_text_looks_valid(source_text: str, translated_text: str) -> bool:
+    source = normalize_text(source_text)
+    translated = normalize_text(translated_text)
+    if not source or not translated:
+        return False
+    return source.casefold() != translated.casefold()
+
+
 def metni_ingilizceye_cevir(text_tr: str) -> str:
-    try:
-        return GoogleTranslator(source="tr", target="en").translate(text_tr)
-    except Exception as exc:
-        print(f"  [WARN] Ceviri hatasi: {exc}")
-        return text_tr
+    normalized = normalize_text(text_tr)
+    if not normalized:
+        return ""
+    if normalized in TRANSLATION_OVERRIDES:
+        return TRANSLATION_OVERRIDES[normalized]
+
+    chunks = split_translation_chunks(normalized)
+    providers = ("google", "mymemory")
+    last_error = ""
+
+    for provider_name in providers:
+        try:
+            translated_chunks = [normalize_text(translate_chunk(chunk, provider_name)) for chunk in chunks]
+            translated_text = " ".join(chunk for chunk in translated_chunks if chunk).strip()
+            for source_value, target_value in TRANSLATION_OVERRIDES.items():
+                translated_text = translated_text.replace(source_value, target_value)
+            if translated_text_looks_valid(normalized, translated_text):
+                return translated_text
+            last_error = f"{provider_name} kaynagi ayni metni geri dondurdu"
+        except Exception as exc:
+            last_error = f"{provider_name}: {exc}"
+
+    if last_error:
+        print(f"  [WARN] Ceviri hatasi: {last_error}")
+    return normalized
 
 
 def groq_ile_zenginlestir(
@@ -429,36 +689,64 @@ def image_path_for(record: SourceRecord) -> Path:
     return IMAGE_DIR / file_name
 
 
-def backup_image_url_for_record(record: SourceRecord) -> str:
+def backup_image_url_for_record(record: SourceRecord, source_image_url: str | None = None) -> str:
+    if source_image_url:
+        return source_image_url
+
     seed = image_seed_from_prompt(record.image_prompt)
     return pollinations_image_url(record.image_prompt, seed)
+
+
+def download_binary_image(url: str, target: Path, timeout: int) -> bool:
+    response = requests.get(url, headers=HTTP_HEADERS, timeout=timeout, allow_redirects=True)
+    content_type = response.headers.get("content-type", "").lower()
+    if response.status_code != 200:
+        return False
+    if content_type and "image" not in content_type and "octet-stream" not in content_type:
+        return False
+    if len(response.content) <= 1024:
+        return False
+
+    target.write_bytes(response.content)
+    return True
 
 
 def download_image(record: SourceRecord) -> Path | None:
     IMAGE_DIR.mkdir(parents=True, exist_ok=True)
     target = image_path_for(record)
+    source_image_url = None
 
-    if target.exists() and target.stat().st_size > 1024:
+    try:
+        source_image_url = extract_source_content(record).image_url
+    except Exception as exc:
+        print(f"  [WARN] {record.place} kaynak gorseli okunamadi: {exc}")
+
+    if source_image_url:
+        try:
+            if download_binary_image(source_image_url, target, timeout=45):
+                return target
+            print(f"  [WARN] Resmi kaynak gorseli kullanilamadi: {source_image_url}")
+        except Exception as exc:
+            print(f"  [WARN] Resmi kaynak gorseli indirilemedi: {exc}")
+
+    if target.exists() and target.stat().st_size > 1024 and not source_image_url:
         return target
 
     seed = image_seed_from_prompt(record.image_prompt)
     image_url = pollinations_image_url(record.image_prompt, seed)
 
     try:
-        response = requests.get(image_url, timeout=90)
-        if response.status_code == 200 and len(response.content) > 1024:
-            target.write_bytes(response.content)
+        if download_binary_image(image_url, target, timeout=90):
             return target
-        print(f"  [WARN] Pollinations basarisiz ({response.status_code}), fallback deneniyor.")
+        print("  [WARN] Pollinations basarisiz, fallback deneniyor.")
     except Exception as exc:
         print(f"  [WARN] Pollinations hatasi: {exc}")
 
     try:
         fallback_url = picsum_image_url(seed)
-        response = requests.get(fallback_url, timeout=20, allow_redirects=True)
-        response.raise_for_status()
-        target.write_bytes(response.content)
-        return target
+        if download_binary_image(fallback_url, target, timeout=20):
+            return target
+        raise RuntimeError("Picsum gorseli uygun formatta donmedi.")
     except Exception as exc:
         print(f"  [ERROR] Gorsel olusturulamadi: {exc}")
         return None
@@ -517,6 +805,126 @@ def media_id_from_entry(entry: dict[str, Any] | None) -> int | None:
                 return data["id"]
 
     return None
+
+
+def place_city_document_id(entry: dict[str, Any] | None) -> str:
+    if not isinstance(entry, dict):
+        return ""
+
+    city = entry.get("city")
+    if isinstance(city, dict):
+        document_id = city.get("documentId")
+        if isinstance(document_id, str):
+            return document_id
+
+        attrs = city.get("attributes")
+        if isinstance(attrs, dict):
+            nested_document_id = attrs.get("documentId")
+            if isinstance(nested_document_id, str):
+                return nested_document_id
+
+        data = city.get("data")
+        if isinstance(data, dict):
+            nested_document_id = data.get("documentId")
+            if isinstance(nested_document_id, str):
+                return nested_document_id
+            attrs = data.get("attributes")
+            if isinstance(attrs, dict):
+                nested_document_id = attrs.get("documentId")
+                if isinstance(nested_document_id, str):
+                    return nested_document_id
+
+    attrs = entry.get("attributes")
+    if isinstance(attrs, dict):
+        return place_city_document_id(attrs)
+
+    return ""
+
+
+def is_generated_backup_url(url: str) -> bool:
+    comparable = normalize_text(url).casefold()
+    return "image.pollinations.ai" in comparable or "picsum.photos" in comparable
+
+
+def rank_place_entry(entry: dict[str, Any]) -> tuple[int, int, int, str]:
+    return (
+        1 if place_city_document_id(entry) else 0,
+        0 if is_generated_backup_url(str(field(entry, "gorsel_yedek_url", ""))) else 1,
+        1 if media_id_from_entry(entry) is not None else 0,
+        str(field(entry, "updatedAt", "")),
+    )
+
+
+def find_existing_place(
+    client: StrapiClient,
+    place_name: str,
+    city_document_id: str,
+    locale: str,
+) -> dict[str, Any] | None:
+    candidates = client.find_many(
+        "places",
+        filters={"filters[mekan_adi][$eq]": place_name},
+        locale=locale,
+        populate="*",
+        status="published",
+        page_size=50,
+    )
+    matching_city = [entry for entry in candidates if place_city_document_id(entry) == city_document_id]
+    if matching_city:
+        return sorted(matching_city, key=rank_place_entry, reverse=True)[0]
+
+    without_city = [entry for entry in candidates if not place_city_document_id(entry)]
+    if without_city:
+        return sorted(without_city, key=rank_place_entry, reverse=True)[0]
+
+    return None
+
+
+def cleanup_duplicate_places(client: StrapiClient) -> int:
+    deleted = 0
+    deleted_document_ids: set[str] = set()
+
+    for locale in ("tr", "en"):
+        entries = client.find_many("places", locale=locale, status="published", populate="*", page_size=200)
+        by_name: dict[str, list[dict[str, Any]]] = {}
+
+        for entry in entries:
+            place_name = str(field(entry, "mekan_adi", "")).strip()
+            if not place_name:
+                continue
+            by_name.setdefault(place_name, []).append(entry)
+
+        for group in by_name.values():
+            with_city = [entry for entry in group if place_city_document_id(entry)]
+            without_city = [entry for entry in group if not place_city_document_id(entry)]
+
+            if with_city and without_city:
+                for entry in without_city:
+                    document_id = str(field(entry, "documentId", "")).strip()
+                    if document_id and document_id not in deleted_document_ids:
+                        client.delete_document("places", document_id)
+                        deleted_document_ids.add(document_id)
+                        deleted += 1
+                group = with_city
+
+            subgroups: dict[str, list[dict[str, Any]]] = {}
+            for entry in group:
+                city_document_id = place_city_document_id(entry) or "__no_city__"
+                subgroups.setdefault(city_document_id, []).append(entry)
+
+            for subgroup in subgroups.values():
+                if len(subgroup) <= 1:
+                    continue
+
+                ranked = sorted(subgroup, key=rank_place_entry, reverse=True)
+                for stale_entry in ranked[1:]:
+                    document_id = str(field(stale_entry, "documentId", "")).strip()
+                    if document_id and document_id not in deleted_document_ids:
+                        client.delete_document("places", document_id)
+                        deleted_document_ids.add(document_id)
+                        deleted += 1
+
+    return deleted
 
 
 def normalize_media_url(url: str | None, base_url: str) -> str | None:
@@ -680,8 +1088,14 @@ class StrapiClient:
         locale: str,
         document_id: str | None = None,
         populate: str | None = None,
+        existing_entry: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        existing = self.find_one(collection, lookup_filters, locale=locale, populate=populate)
+        existing = existing_entry if existing_entry is not None else self.find_one(
+            collection,
+            lookup_filters,
+            locale=locale,
+            populate=populate,
+        )
         target_document_id = field(existing, "documentId") if existing else document_id
         params = {"locale": locale, "status": "published"}
         payload = {"data": data}
@@ -765,11 +1179,12 @@ def reset_strapi_content(client: StrapiClient) -> None:
     print(f"[RESET] Media Library icinden {deleted} dosya silindi.")
 
 
-def extract_source_content(record: SourceRecord) -> tuple[str, str]:
+@functools.lru_cache(maxsize=None)
+def extract_source_content(record: SourceRecord) -> ExtractedSource:
     extractor = EXTRACTORS.get(record.extractor)
     if extractor is None:
         raise RuntimeError(f"Bilinmeyen extractor: {record.extractor}")
-    return extractor(record.source_url)
+    return extractor(record)
 
 
 def verify_groq(api_key: str) -> bool:
@@ -800,6 +1215,7 @@ def sync_cities(
     for city_name, city_data in city_map.items():
         summary_tr = city_data["summary_tr"]
         summary_en = metni_ingilizceye_cevir(summary_tr)
+        country_en = metni_ingilizceye_cevir(city_data["country"])
 
         lookup = {"filters[ad][$eq]": city_name}
         tr_entry = client.upsert_document(
@@ -818,7 +1234,7 @@ def sync_cities(
             lookup_filters=lookup,
             data={
                 "ad": city_name,
-                "ulke": city_data["country"],
+                "ulke": country_en,
                 "kisa_bilgi": summary_en,
             },
             locale="en",
@@ -847,8 +1263,8 @@ def sync_places(
     for index, record in enumerate(sources, start=1):
         print(f"\n[{index}/{len(sources)}] {record.place} - {record.city}")
         try:
-            source_title, description_tr = extract_source_content(record)
-            print(f"  [OK] Kaynak okundu: {source_title or record.place}")
+            source_content = extract_source_content(record)
+            print(f"  [OK] Kaynak okundu: {source_content.title or record.place}")
             headlines = google_news_al(record.city, record.place)
             if headlines:
                 print(f"  [OK] {len(headlines)} guncel haber bulundu.")
@@ -856,28 +1272,33 @@ def sync_places(
                 groq_api_key,
                 record.place,
                 record.city,
-                description_tr,
+                source_content.description,
                 headlines,
             )
             description_en = metni_ingilizceye_cevir(enriched_tr)
 
             city_info = city_state[record.city]
             image_seed = image_seed_from_prompt(record.image_prompt)
-            backup_url = backup_image_url_for_record(record)
-            lookup = {
-                "filters[mekan_adi][$eq]": record.place,
-                "filters[city][documentId][$eq]": city_info["document_id"],
-            }
-            existing_tr = client.find_one("places", lookup, locale="tr", populate="*")
+            backup_url = backup_image_url_for_record(record, source_content.image_url)
+            lookup = {"filters[mekan_adi][$eq]": record.place}
+            existing_tr = find_existing_place(client, record.place, city_info["document_id"], locale="tr")
             document_id = field(existing_tr, "documentId") if existing_tr else None
             media_id = media_id_from_entry(existing_tr)
             media_url = media_url_from_entry(existing_tr, client.base_url)
+            previous_backup_url = normalize_media_url(
+                field(existing_tr, "gorsel_yedek_url", ""),
+                client.base_url,
+            )
             needs_media_refresh = media_id is None
 
             if media_url and is_same_strapi_host(media_url, client.base_url) and not remote_image_available(
                 media_url
             ):
                 print("  [WARN] Mevcut Strapi gorseli erisilemiyor, yeniden yukleme denenecek.")
+                needs_media_refresh = True
+
+            if source_content.image_url and previous_backup_url != backup_url:
+                print("  [OK] Resmi kaynak gorseli guncellendi, medya yenilenecek.")
                 needs_media_refresh = True
 
             if needs_media_refresh:
@@ -905,8 +1326,10 @@ def sync_places(
                 locale="tr",
                 document_id=document_id,
                 populate="*",
+                existing_entry=existing_tr,
             )
             document_id = field(tr_entry, "documentId")
+            existing_en = find_existing_place(client, record.place, city_info["document_id"], locale="en")
 
             en_payload = {
                 "mekan_adi": record.place,
@@ -927,6 +1350,7 @@ def sync_places(
                 locale="en",
                 document_id=document_id,
                 populate="*",
+                existing_entry=existing_en,
             )
 
             print("  [OK] TR ve EN lokalizasyonlari senkronize edildi.")
@@ -945,20 +1369,21 @@ def dry_run_preview(sources: list[SourceRecord], groq_api_key: str) -> tuple[int
     for index, record in enumerate(sources, start=1):
         print(f"\n[DRY-RUN {index}/{len(sources)}] {record.place} - {record.city}")
         try:
-            source_title, description_tr = extract_source_content(record)
+            source_content = extract_source_content(record)
             headlines = google_news_al(record.city, record.place)
             enriched_tr = groq_ile_zenginlestir(
                 groq_api_key,
                 record.place,
                 record.city,
-                description_tr,
+                source_content.description,
                 headlines,
             )
             description_en = metni_ingilizceye_cevir(enriched_tr)
 
-            print(f"  Kaynak: {source_title or record.place}")
+            print(f"  Kaynak: {source_content.title or record.place}")
             print(f"  URL: {record.source_url}")
             print(f"  Extractor: {record.extractor}")
+            print(f"  Gorsel kaynagi: {source_content.image_url or 'fallback uretilmis'}")
             print(f"  Gorsel promptu: {record.image_prompt}")
             print(f"  Haber sayisi: {len(headlines)}")
             print(f"  TR aciklama: {enriched_tr[:220]}")
@@ -1027,9 +1452,11 @@ def main() -> None:
     local_images = prepare_local_images(sources, enabled=True)
     city_state = sync_cities(client, city_map)
     success, failed = sync_places(client, sources, city_state, local_images, groq_api_key)
+    deleted_duplicates = cleanup_duplicate_places(client)
 
     print("\n" + "=" * 72)
     print(f"Senkronizasyon tamamlandi | basarili: {success} | basarisiz: {failed}")
+    print(f"Temizlenen mukerrer mekan dokumani: {deleted_duplicates}")
     print(f"Gorsel cache klasoru: {IMAGE_DIR}")
     print("=" * 72)
 
