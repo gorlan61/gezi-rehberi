@@ -118,5 +118,125 @@
     "city_summary_tr": "Akdeniz kıyısında; antik kentleri, tarihi liman dokusu ve şelaleleriyle deniz, kültür ve doğayı aynı rotada birleştiren turizm başkenti.",
     "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20190506132011733_ANTALYA DUDEN SELALESI (7).jpg?format=jpg&quality=50",
     "source_url": "https://www.kulturportali.gov.tr/turkiye/antalya/gezilecekyer/duden-selalesi"
+  },
+  {
+    "city": "Bursa",
+    "place": "Bursa Ulu Cami",
+    "country": "Türkiye",
+    "city_summary_tr": "Osmanlı'nın ilk başkenti; külliyeleri, hanları, çarşıları ve Uludağ eteklerine yayılan tarihi dokusuyla güçlü bir kültür şehri.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20260123161745234_Bursa_ Ulu Cami (11) kopya.jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/bursa/gezilecekyer/bursa-ulu-cami"
+  },
+  {
+    "city": "Bursa",
+    "place": "Koza Han",
+    "country": "Türkiye",
+    "city_summary_tr": "Osmanlı'nın ilk başkenti; külliyeleri, hanları, çarşıları ve Uludağ eteklerine yayılan tarihi dokusuyla güçlü bir kültür şehri.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/28012013/cfde61a3-2ea6-4971-8924-6fd6ff8aaa5e.JPG?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/bursa/gezilecekyer/koza-han"
+  },
+  {
+    "city": "Bursa",
+    "place": "Hanlar Bölgesi",
+    "country": "Türkiye",
+    "city_summary_tr": "Osmanlı'nın ilk başkenti; külliyeleri, hanları, çarşıları ve Uludağ eteklerine yayılan tarihi dokusuyla güçlü bir kültür şehri.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/13032013/7b0f2818-0dd5-4c99-b051-0cf3151b0f03.JPG?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/bursa/gezilecekyer/hanlar-bolgesi"
+  },
+  {
+    "city": "Bursa",
+    "place": "Cumalıkızık Köyü",
+    "country": "Türkiye",
+    "city_summary_tr": "Osmanlı'nın ilk başkenti; külliyeleri, hanları, çarşıları ve Uludağ eteklerine yayılan tarihi dokusuyla güçlü bir kültür şehri.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20171004104210008_GettyImages 519710096.jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/bursa/gezilecekyer/cumalikizik-koyu"
+  },
+  {
+    "city": "Nevşehir",
+    "place": "Göreme Açık Hava Müzesi",
+    "country": "Türkiye",
+    "city_summary_tr": "Kapadokya'nın kalbinde; peribacaları, yeraltı şehirleri ve kaya oyma mirasıyla benzersiz bir jeoloji ve tarih rotası.",
+    "official_image_url": "https://www.kulturportali.gov.tr/contents/images/001%20g%c3%b6reme%20a%c3%a7%c4%b1k%20hava%20m%c3%bczesi.jpg",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/nevsehir/gezilecekyer/goreme-acik-hava-muzes"
+  },
+  {
+    "city": "Nevşehir",
+    "place": "Uçhisar Kalesi",
+    "country": "Türkiye",
+    "city_summary_tr": "Kapadokya'nın kalbinde; peribacaları, yeraltı şehirleri ve kaya oyma mirasıyla benzersiz bir jeoloji ve tarih rotası.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20250414120305484_Fiap Gezi 1255 kopya.jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/nevsehir/gezilecekyer/uchsar-kales"
+  },
+  {
+    "city": "Nevşehir",
+    "place": "Paşabağları ve Zelve Ören Yeri",
+    "country": "Türkiye",
+    "city_summary_tr": "Kapadokya'nın kalbinde; peribacaları, yeraltı şehirleri ve kaya oyma mirasıyla benzersiz bir jeoloji ve tarih rotası.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20250218132255494_NEVSEHIR AVANOS PASABAGI GULCANACAR (2) kopya.jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/nevsehir/gezilecekyer/pasabaglari-ve-zelve-oren-yer"
+  },
+  {
+    "city": "Nevşehir",
+    "place": "Derinkuyu Yeraltı Şehri",
+    "country": "Türkiye",
+    "city_summary_tr": "Kapadokya'nın kalbinde; peribacaları, yeraltı şehirleri ve kaya oyma mirasıyla benzersiz bir jeoloji ve tarih rotası.",
+    "official_image_url": "https://www.kulturportali.gov.tr/contents/images/Derinkuyu%20Yeraltehri%20(6)%20kopya.jpg",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/nevsehir/gezilecekyer/derinkuyu-yeralti-sehri"
+  },
+  {
+    "city": "Muğla",
+    "place": "Bodrum Kalesi",
+    "country": "Türkiye",
+    "city_summary_tr": "Ege ile Akdeniz arasında; antik kentleri, koyları, kaleleri ve gölleriyle denizle tarihi bir arada sunan çok yönlü bir turizm bölgesi.",
+    "official_image_url": "https://www.kulturportali.gov.tr/contents/images/Bodrum%20Sualt%20Arkeoloji%20M%c3%bczesi%20-%20Bodrum%20Kalesi%20(1).jpg",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mugla/gezilecekyer/bodrum-kalesi"
+  },
+  {
+    "city": "Muğla",
+    "place": "Amintas Kaya Mezarları",
+    "country": "Türkiye",
+    "city_summary_tr": "Ege ile Akdeniz arasında; antik kentleri, koyları, kaleleri ve gölleriyle denizle tarihi bir arada sunan çok yönlü bir turizm bölgesi.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20260306161005829_amintas kaya mezarlari 0564 kopya.jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mugla/gezilecekyer/amintas-kaya-mezarlari"
+  },
+  {
+    "city": "Muğla",
+    "place": "Stratonikeia Antik Kenti",
+    "country": "Türkiye",
+    "city_summary_tr": "Ege ile Akdeniz arasında; antik kentleri, koyları, kaleleri ve gölleriyle denizle tarihi bir arada sunan çok yönlü bir turizm bölgesi.",
+    "official_image_url": "https://www.kulturportali.gov.tr/contents/images/Mu%c4%9fla_Stratonikeia_Antik%20kenti%2019%20kopya.jpg",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mugla/gezilecekyer/stratonikeia-antik-kenti"
+  },
+  {
+    "city": "Muğla",
+    "place": "Bafa Gölü",
+    "country": "Türkiye",
+    "city_summary_tr": "Ege ile Akdeniz arasında; antik kentleri, koyları, kaleleri ve gölleriyle denizle tarihi bir arada sunan çok yönlü bir turizm bölgesi.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20230103110406187_DJI_0132 kopya.jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mugla/gezilecekyer/bafa-golu"
+  },
+  {
+    "city": "Mersin",
+    "place": "Korykos Antik Kenti",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; kaleleri, antik limanları, nehirleri ve doğal duraklarıyla tarih ve doğayı birlikte taşıyan canlı bir sahil şehri.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20251120100702527_Korykos Antik Kenti DJI_20240125105300_0068_D kopya.jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mersin/gezilecekyer/korykos-antik-kenti-"
+  },
+  {
+    "city": "Mersin",
+    "place": "Mamure Kalesi",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; kaleleri, antik limanları, nehirleri ve doğal duraklarıyla tarih ve doğayı birlikte taşıyan canlı bir sahil şehri.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20170131141642895_Mamure Kalesi (Foto Anamur Muzesi) (2).jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mersin/gezilecekyer/mamure-kalesi"
+  },
+  {
+    "city": "Mersin",
+    "place": "Tarsus Şelalesi",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; kaleleri, antik limanları, nehirleri ve doğal duraklarıyla tarih ve doğayı birlikte taşıyan canlı bir sahil şehri.",
+    "official_image_url": "https://www.kulturportali.gov.tr/repoKulturPortali/large/SehirRehberi//GezilecekYer/20251128113631201_MERSIN BERDAN CAYI BOGAZPINAR SELALESI GULCAN ACAR (9) kopya.jpg?format=jpg&quality=50",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mersin/gezilecekyer/tarsus-selalesi"
   }
 ]

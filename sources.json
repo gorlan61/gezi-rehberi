@@ -148,5 +148,155 @@
     "extractor": "kulturportali",
     "score": 4,
     "image_prompt": "Duden Waterfall Antalya cliffs and water Turkey realistic travel photo"
+  },
+  {
+    "city": "Bursa",
+    "country": "Türkiye",
+    "city_summary_tr": "Osmanlı'nın ilk başkenti; külliyeleri, hanları, çarşıları ve Uludağ eteklerine yayılan tarihi dokusuyla güçlü bir kültür şehri.",
+    "place": "Bursa Ulu Cami",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/bursa/gezilecekyer/bursa-ulu-cami",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Bursa Grand Mosque Ottoman architecture fountain calligraphy Turkey realistic travel photo"
+  },
+  {
+    "city": "Bursa",
+    "country": "Türkiye",
+    "city_summary_tr": "Osmanlı'nın ilk başkenti; külliyeleri, hanları, çarşıları ve Uludağ eteklerine yayılan tarihi dokusuyla güçlü bir kültür şehri.",
+    "place": "Koza Han",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/bursa/gezilecekyer/koza-han",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Koza Han Bursa courtyard silk bazaar Ottoman han Turkey realistic travel photo"
+  },
+  {
+    "city": "Bursa",
+    "country": "Türkiye",
+    "city_summary_tr": "Osmanlı'nın ilk başkenti; külliyeleri, hanları, çarşıları ve Uludağ eteklerine yayılan tarihi dokusuyla güçlü bir kültür şehri.",
+    "place": "Hanlar Bölgesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/bursa/gezilecekyer/hanlar-bolgesi",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Bursa Hanlar District historic bazaars inns old town Turkey realistic travel photo"
+  },
+  {
+    "city": "Bursa",
+    "country": "Türkiye",
+    "city_summary_tr": "Osmanlı'nın ilk başkenti; külliyeleri, hanları, çarşıları ve Uludağ eteklerine yayılan tarihi dokusuyla güçlü bir kültür şehri.",
+    "place": "Cumalıkızık Köyü",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/bursa/gezilecekyer/cumalikizik-koyu",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Cumalikizik village Bursa Ottoman houses cobblestone street Turkey realistic travel photo"
+  },
+  {
+    "city": "Nevşehir",
+    "country": "Türkiye",
+    "city_summary_tr": "Kapadokya'nın kalbinde; peribacaları, yeraltı şehirleri ve kaya oyma mirasıyla benzersiz bir jeoloji ve tarih rotası.",
+    "place": "Göreme Açık Hava Müzesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/nevsehir/gezilecekyer/goreme-acik-hava-muzes",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Goreme Open Air Museum cave churches Cappadocia Turkey realistic travel photo"
+  },
+  {
+    "city": "Nevşehir",
+    "country": "Türkiye",
+    "city_summary_tr": "Kapadokya'nın kalbinde; peribacaları, yeraltı şehirleri ve kaya oyma mirasıyla benzersiz bir jeoloji ve tarih rotası.",
+    "place": "Uçhisar Kalesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/nevsehir/gezilecekyer/uchsar-kales",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Uchisar Castle Cappadocia panoramic rock fortress Turkey realistic travel photo"
+  },
+  {
+    "city": "Nevşehir",
+    "country": "Türkiye",
+    "city_summary_tr": "Kapadokya'nın kalbinde; peribacaları, yeraltı şehirleri ve kaya oyma mirasıyla benzersiz bir jeoloji ve tarih rotası.",
+    "place": "Paşabağları ve Zelve Ören Yeri",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/nevsehir/gezilecekyer/pasabaglari-ve-zelve-oren-yer",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Pasabaglari Zelve fairy chimneys Cappadocia Turkey realistic travel photo"
+  },
+  {
+    "city": "Nevşehir",
+    "country": "Türkiye",
+    "city_summary_tr": "Kapadokya'nın kalbinde; peribacaları, yeraltı şehirleri ve kaya oyma mirasıyla benzersiz bir jeoloji ve tarih rotası.",
+    "place": "Derinkuyu Yeraltı Şehri",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/nevsehir/gezilecekyer/derinkuyu-yeralti-sehri",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Derinkuyu Underground City Cappadocia stone tunnels Turkey realistic travel photo"
+  },
+  {
+    "city": "Muğla",
+    "country": "Türkiye",
+    "city_summary_tr": "Ege ile Akdeniz arasında; antik kentleri, koyları, kaleleri ve gölleriyle denizle tarihi bir arada sunan çok yönlü bir turizm bölgesi.",
+    "place": "Bodrum Kalesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mugla/gezilecekyer/bodrum-kalesi",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Bodrum Castle seaside fortress marina Mugla Turkey realistic travel photo"
+  },
+  {
+    "city": "Muğla",
+    "country": "Türkiye",
+    "city_summary_tr": "Ege ile Akdeniz arasında; antik kentleri, koyları, kaleleri ve gölleriyle denizle tarihi bir arada sunan çok yönlü bir turizm bölgesi.",
+    "place": "Amintas Kaya Mezarları",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mugla/gezilecekyer/amintas-kaya-mezarlari",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Amyntas Rock Tombs Fethiye cliff tombs Mugla Turkey realistic travel photo"
+  },
+  {
+    "city": "Muğla",
+    "country": "Türkiye",
+    "city_summary_tr": "Ege ile Akdeniz arasında; antik kentleri, koyları, kaleleri ve gölleriyle denizle tarihi bir arada sunan çok yönlü bir turizm bölgesi.",
+    "place": "Stratonikeia Antik Kenti",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mugla/gezilecekyer/stratonikeia-antik-kenti",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Stratonikeia Ancient City Mugla marble street ruins Turkey realistic travel photo"
+  },
+  {
+    "city": "Muğla",
+    "country": "Türkiye",
+    "city_summary_tr": "Ege ile Akdeniz arasında; antik kentleri, koyları, kaleleri ve gölleriyle denizle tarihi bir arada sunan çok yönlü bir turizm bölgesi.",
+    "place": "Bafa Gölü",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mugla/gezilecekyer/bafa-golu",
+    "extractor": "kulturportali",
+    "score": 4,
+    "image_prompt": "Bafa Lake Mugla calm water mountains Turkey realistic travel photo"
+  },
+  {
+    "city": "Mersin",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; kaleleri, antik limanları, nehirleri ve doğal duraklarıyla tarih ve doğayı birlikte taşıyan canlı bir sahil şehri.",
+    "place": "Korykos Antik Kenti",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mersin/gezilecekyer/korykos-antik-kenti-",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Korykos Ancient City Mersin coastal ruins Turkey realistic travel photo"
+  },
+  {
+    "city": "Mersin",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; kaleleri, antik limanları, nehirleri ve doğal duraklarıyla tarih ve doğayı birlikte taşıyan canlı bir sahil şehri.",
+    "place": "Mamure Kalesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mersin/gezilecekyer/mamure-kalesi",
+    "extractor": "kulturportali",
+    "score": 5,
+    "image_prompt": "Mamure Castle Mersin seafront fortress Turkey realistic travel photo"
+  },
+  {
+    "city": "Mersin",
+    "country": "Türkiye",
+    "city_summary_tr": "Akdeniz kıyısında; kaleleri, antik limanları, nehirleri ve doğal duraklarıyla tarih ve doğayı birlikte taşıyan canlı bir sahil şehri.",
+    "place": "Tarsus Şelalesi",
+    "source_url": "https://www.kulturportali.gov.tr/turkiye/mersin/gezilecekyer/tarsus-selalesi",
+    "extractor": "kulturportali",
+    "score": 4,
+    "image_prompt": "Tarsus Waterfall Mersin riverside cascade Turkey realistic travel photo"
   }
 ]

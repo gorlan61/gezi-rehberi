@@ -33,7 +33,7 @@ SOURCE_FILE = ROOT_DIR / "sources.json"
 IMAGE_DIR = ROOT_DIR / "gezi_gorseller"
 BACKEND_DIR = ROOT_DIR / "gezi-rehberi-backend"
 SQLITE_PATH = BACKEND_DIR / ".tmp" / "data.db"
-BACKUP_DIR = BACKEND_DIR / ".tmp" / "backups"
+BACKUP_DIR = ROOT_DIR / ".tmp" / "backups"
 
 REQUEST_TIMEOUT = 25
 TRANSLATION_CHUNK_SIZE = 420
